@@ -95,21 +95,22 @@ Use **Slint (1.17.x)** with its software renderer by default and the FemtoVG (Op
 
 **Licensing:** Slint is GPLv3, or a free royalty-free license for desktop apps, or commercial. Personal use is fine under either free option.
 
-### Design direction: Apple Music–style, dark
+### Design direction: art-led, immersive, dark
 
-The Apple Music look comes from large square art, lots of space, bold page titles and one accent colour; all of it is cheap in Slint. Sizes below assume 100% scaling on your display.
+Inspired by Apple Music's calm (large art, lots of space) but with its own look: the current album art sets the mood of the whole window, chrome nearly disappears, and type is set like a poster. No ambient glows and no glass panels. It works within the software renderer's limits, measured in M3: no blur, no drop shadows, and gradients cannot have rounded corners. Sizes assume 100% scaling.
 
 | Element | Spec |
 | --- | --- |
-| Layout | Translucent-looking left sidebar (Library: Recently Added, Artists, Albums, Songs, Playlists; then your playlists). Compact now-playing bar at the top with small art, title, progress and controls. Content area on the right. |
-| Album grid | Square covers \~180 px with 8 px rounded corners, title (600 weight) and artist (secondary colour) under each, 24 px gutters. Hover lifts the cover slightly and shows a round play button. |
-| Album page | Cover \~270 px on the left; title, artist (accent colour), year and track count; pill-shaped Play and Shuffle buttons; numbered track list with hover rows and durations right-aligned. |
-| Recently Added | The home view, fed by the daily sync. It suits a library that grows every day. |
-| Full-screen now playing | Art up to \~560 px on a backdrop made from a blurred 32×32 copy of the art, progress scrubber and controls underneath. No lyrics: Spotify only offers them through a private endpoint. |
-| Typography | Segoe UI Variable (built into Windows 11; Segoe UI on Windows 10), so nothing extra is bundled. Page titles 28–32 px bold, body 13–14 px, secondary text at \~60% white. |
-| Colour | Near-black background (`#1c1c1e`-ish), elevated surfaces one step lighter. Accent taken from the current album art, with an Apple-style red-pink fallback. |
-| Motion | 200–250 ms ease-out for page and hover transitions, cross-fade when the art changes, kinetic scrolling. Everything must hold 144 fps. |
-| Stretch | Windows 11 Mica behind the sidebar. It needs a transparent window, so test it against the software renderer before committing. |
+| Canvas | One full-window colour field behind everything. Until art loads it is a neutral near-black; from M8 it is flooded by the current art: an upscaled 32×32 copy (which reads as a heavy blur) darkened under the art's average colour, cross-faded on track change. |
+| Chrome | No panels, cards or borders. A slim icon rail on the left (icons only, the selected page marked by a soft disc; connection status as a dot at the bottom) and one borderless control strip at the bottom: transport, timeline, volume. Both sit directly on the canvas. |
+| Now playing | The home of the app and a poster: art as large as the window allows on the left, an oversized title (56–72 px, bold, tight tracking) and the artist beside it, a white Play pill and a quiet Full Screen action. Full screen hides the rail and makes the window full screen; Esc leaves it. |
+| Album grid | Square covers \~180 px, 8 px radius, title (600 weight) and artist (secondary) under each, 24 px gutters, directly on the canvas. Hover brightens the cover and reveals a round play button. |
+| Album page | A poster like now playing: cover \~300 px, oversized title, artist, year and track count; Play and Shuffle pills; a plain track list with hover rows. |
+| Recently Added | The home view once the library exists, fed by the daily sync. |
+| Typography | Segoe UI Variable (built into Windows 11), nothing bundled. Poster scale: display titles 56–72 px bold with tight tracking, body 13–14 px, secondary text at \~60% white, small uppercase labels only where they carry meaning. |
+| Colour | Neutral near-black canvas, text at 96/60/35% white. The accent is white until art provides one; from M8 it is taken from the current art. Status colours only for status. |
+| Motion | 200–250 ms ease-out for page and hover transitions, cross-fade when the art or canvas changes, kinetic scrolling. Everything must hold 144 fps. |
+| Stretch | Native title bar coloured to match the canvas (`DWMWA_CAPTION_COLOR`), so the window reads as one surface. |
 
 ## 3 · Rate-limit-proof request layer
 
@@ -163,7 +164,7 @@ A daily sync of a library that grew by a few dozen items costs about 3–8 reque
 - **Liked Songs, saved albums:** `limit=50`, newest first, stop at the first known `(id, added_at)`. 20 new songs = 1 request.
 - **Playlists:** page `/me/playlists` (about 1 request per 50 playlists) and compare each `snapshot_id`. Only changed playlists you own are refetched; followed playlists refresh through librespot when opened.
 - **Removals:** an incremental sync can't see songs you unliked on your phone. Compare the `total` on the first page with the local count; if they disagree, queue a full reconciliation in the background lane. Also run one weekly, and offer Full resync in settings.
-- **Feedback:** "Syncing library… 3,200 / 10,400" in the sidebar, and the library stays usable throughout.
+- **Feedback:** "Syncing library… 3,200 / 10,400" on the library page, and the library stays usable throughout.
 - **Searching your own library** uses SQLite FTS5 over titles, artists and albums. It is instant and costs 0 requests; the Web API search is only for the wider catalog.
 
 ### Search
@@ -302,13 +303,13 @@ Each milestone ends with a test you can run, and the riskiest unknowns (librespo
    - Done when: 10 minutes of playback shows a smooth bar with the Web API request counter at 0; RSS under 70 MB; renderer chosen from measured RSS and CPU.
 4. **M4 — Gateway + cache.** `ApiGateway`, SQLite cache, metrics overlay, tests against a mock server.
    - Done when: 50 concurrent identical GETs produce 1 network request; a 429 with `Retry-After: 5` stops every lane for at least 5 s; `QUOTA_EXCEEDED` opens the breaker; a 401 triggers exactly one refresh; cancelled queued requests are never sent.
-5. **M5 — Library.** Playlist sidebar with `snapshot_id` diffing, incremental Liked Songs sync, virtualized list backed by SQLite.
+5. **M5 — Library.** Playlists page with `snapshot_id` diffing, incremental Liked Songs sync, virtualized list backed by SQLite.
    - Done when: your full Liked Songs list scrolls at 144 fps without visible stutter; a daily sync with no library changes costs ≤ 3 requests; second launch makes ≤ 2 Web API requests; RSS under 90 MB with the list open.
 6. **M6 — Catalog via librespot.** Album, artist (with top tracks) and followed or editorial playlist pages from spclient; spike batched extended metadata.
    - Done when: browsing 20 albums and 5 artists produces 0 Web API requests; with spclient disabled by config, the same pages still load through the Web API fallback.
 7. **M7 — Search.** Debounced single-request search with cancellation and caching.
    - Done when: typing "radiohead" at normal speed sends exactly 1 request; repeating it within 10 minutes sends 0.
-8. **M8 — Images + polish.** Apple Music–style views (section 2), full art pipeline, average-colour placeholders, blurred backdrop, animations, Windows media overlay and media keys, and the Playback settings page (EQ, normalisation, gapless, output device).
+8. **M8 — Images + polish.** Art-led, immersive views (section 2), full art pipeline, average-colour placeholders, blurred backdrop, animations, Windows media overlay and media keys, and the Playback settings page (EQ, normalisation, gapless, output device).
    - Done when: after 30 minutes of mixed browsing, decoded image bytes stay ≤ 16 MB, peak RSS ≤ 100 MB and steady RSS ≤ 85 MB.
 9. **M9 — Remote devices + resilience.** Device picker and transfer to your phone and speakers, with the polling policy, plus degraded modes (librespot down: browse from cache; quota exceeded: cached data, banner).
    - Done when: a scripted 24-hour soak session shows zero 429s and less than 5 MB RSS drift; killing the network for 5 minutes recovers without restarting the app.
@@ -376,7 +377,7 @@ Skip `rspotify`: its maintainer said it enters maintenance mode after the Februa
 | Platform | Windows, MSVC toolchain |
 | Display | MSI MAG27C: 27", 1920×1080, 144 Hz; 100% scaling assumed |
 | Playback scope | Local playback first; phone and speaker control in M9 |
-| Design | Apple Music–style, dark (section 2) |
+| Design | Art-led and immersive: the album art floods the window, minimal chrome, poster type, dark; inspired by Apple Music, not a copy (section 2) |
 | Audio | 320 kbps Vorbis (lossless unavailable through librespot), gapless on, normalisation Normal/Auto, 10-band EQ in Settings |
 | Disk cache | 500 MB total: images 300, audio 150, SQLite \~50 |
 | Library | Large and growing daily: daily plus on-demand sync, local search via FTS5. Sizes in this plan assume \~10,000 liked songs. |

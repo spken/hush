@@ -107,8 +107,8 @@ Crates created: `ui`, `app`.
    bounded `mpsc(64)`, pushes view-model diffs via `upgrade_in_event_loop`.
 3. `ui`: theme tokens (`theme.slint`: colours, spacing, radii, type scale, durations) —
    every other `.slint` file reads from it.
-4. `ui`: window layout (sidebar, top now-playing bar, content area), full-screen now
-   playing view with a placeholder art block.
+4. `ui`: window layout (icon rail, content canvas, bottom control strip), the now-playing
+   poster page with a placeholder art block, and a full-screen mode.
 5. Local progress: 250 ms Slint `Timer` + property animation from the anchor.
 6. Transport controls → `Command` → Controller → Spirc.
 7. Debug overlay stub (Ctrl+Shift+D): RSS via `memory-stats`, Web API request counter.
@@ -161,7 +161,7 @@ requests are never sent.
 6. `ui`: one generic `KeyListModel` (`slint::Model`) — `Vec<u32>` keys + 300-row LRU loaded
    from SQLite in pages of 100. Every list view (songs, albums, playlist items, search
    results) uses it.
-7. Sidebar with playlists; "Syncing library… n / total" progress.
+7. Playlists page reached from the icon rail; "Syncing library… n / total" progress.
 8. Visible-range reporting: `Command::RowsVisible`, coalesced every 100 ms.
 
 **Exit test:** full Liked Songs scrolls at 144 fps; unchanged daily sync ≤ 3 requests;
@@ -211,7 +211,7 @@ Crate created: `images`.
 4. RAM `kit::ByteLru` capped at 16 MB, key includes target size.
 5. Same decode pass: average colour → `store`; 32×32 copy for the blurred backdrop.
 6. Cancel decodes for rows scrolled away.
-7. Apple Music–style views: album grid, album page, Recently Added home, full-screen now
+7. Art-led, immersive views (plan, section 2): album grid, album page, Recently Added home, full-screen now
    playing, hover/press motion at 200–250 ms ease-out.
 8. Windows: `souvlaki` media overlay + media keys.
 9. Settings → Playback: EQ (presets, 10 sliders, preamp, bypass), normalisation, gapless,
@@ -249,7 +249,7 @@ without restart.
 ## Stretch (not scheduled)
 
 - Push-based remote state via librespot dealer / Connect cluster updates.
-- Windows 11 Mica behind the sidebar (needs transparent window; test with chosen renderer).
+- Native title bar coloured to match the canvas (`DWMWA_CAPTION_COLOR`).
 - Zeroconf discovery, only if the device fails to appear without it.
 
 ## Dependency order

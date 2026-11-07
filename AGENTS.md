@@ -271,7 +271,8 @@ Memory is a product requirement (≈ 75 MB steady, 100 MB ceiling).
   redefine them.
 - Lists use `ListView` + `KeyListModel`. Never push a full list into a `VecModel`.
 - Animations: 200–250 ms ease-out, defined once as theme durations.
-- Design bar: enterprise-grade, Apple Music–style dark theme (see the plan, section 2).
+- Design bar: enterprise-grade, award-level dark design: art-led and immersive, minimal
+  chrome, poster type, inspired by Apple Music but not a copy (see the plan, section 2).
   Consistent spacing grid, one accent colour, clear hierarchy, no visual noise.
 
 ### Dependencies
