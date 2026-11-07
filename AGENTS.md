@@ -293,6 +293,8 @@ Memory is a product requirement (≈ 75 MB steady, 100 MB ceiling).
 
 ### Commits
 
-- One logical change per commit, imperative subject (`Add gateway coalescing`), with the
-  milestone in the body when relevant.
+- One logical change per commit.
+- Subject only: short, all lowercase, imperative (`add gateway coalescing`). No body or
+  description.
+- No `Co-Authored-By` or other attribution trailers.
 - A commit leaves the workspace building, formatted, lint-clean, and tested.
