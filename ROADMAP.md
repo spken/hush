@@ -31,7 +31,7 @@ duplication; none changes the product.
 
 1. Create a dev-mode app in the Spotify developer dashboard. Redirect URI
    `http://127.0.0.1:8898/callback`. Record the Client ID in `.env.example` (no secrets).
-2. Install Visual Studio C++ Build Tools; `rustup update`; confirm `rustc >= 1.85` on
+2. Install Visual Studio C++ Build Tools; `rustup update`; confirm `rustc >= 1.92` on
    `stable-x86_64-pc-windows-msvc`.
 3. Create the workspace skeleton: root `Cargo.toml` with `[workspace]`, `resolver = "3"`,
    `[workspace.package] edition = "2024"`, `[workspace.dependencies]` (exact pins for

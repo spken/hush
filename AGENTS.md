@@ -147,7 +147,7 @@ async fn run(deps: Deps, mut rx: mpsc::Receiver<Msg>) {
 
 ### Toolchain and workspace
 
-- Rust stable ≥ 1.85, `x86_64-pc-windows-msvc`, **edition 2024**, `resolver = "3"`.
+- Rust stable ≥ 1.92 (Slint 1.18), `x86_64-pc-windows-msvc`, **edition 2024**, `resolver = "3"`.
 - All dependency versions are declared once in root `[workspace.dependencies]`; member
   crates use `dep = { workspace = true }`. Pin `librespot-*` and `slint` with `=x.y.z`.
 - Enable only the features you use (`default-features = false` where it saves size).
