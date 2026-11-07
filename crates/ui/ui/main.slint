@@ -1,0 +1,72 @@
+import { Theme } from "theme.slint";
+import { Player, Format, Debug, Connection } from "player.slint";
+import { Rail } from "rail.slint";
+import { Controls } from "controls.slint";
+import { NowPlayingPage } from "now-playing-page.slint";
+import { DebugOverlay } from "debug-overlay.slint";
+
+export { Player, Format, Debug, Connection }
+
+export component MainWindow inherits Window {
+    property <bool> immersive;
+    property <bool> debug-open;
+
+    title: "Hush";
+    preferred-width: Theme.window-width;
+    preferred-height: Theme.window-height;
+    min-width: Theme.window-min-width;
+    min-height: Theme.window-min-height;
+    // A different colour while minimized marks the whole window dirty on restore, because
+    // the software renderer otherwise repaints only what changed into a cleared buffer.
+    background: root.minimized ? Theme.canvas-minimized : Theme.canvas;
+    default-font-family: Theme.font;
+    default-font-size: Theme.text-body;
+    full-screen: root.immersive;
+    forward-focus: keys;
+
+    Timer {
+        interval: Theme.progress-tick;
+        running: Player.playing && !root.minimized;
+        triggered => { Player.tick(); }
+    }
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (event.modifiers.control && event.modifiers.shift && (event.text == "d" || event.text == "D")) {
+                root.debug-open = !root.debug-open;
+                if (root.debug-open) {
+                    Debug.sample();
+                }
+                return accept;
+            }
+            if (event.text == Key.Escape && root.immersive) {
+                root.immersive = false;
+                return accept;
+            }
+            if (event.text == " " && Player.has-track) {
+                Player.play-pause();
+                return accept;
+            }
+            reject
+        }
+
+        HorizontalLayout {
+            if !root.immersive: Rail {}
+
+            VerticalLayout {
+                NowPlayingPage {
+                    vertical-stretch: 1;
+                    full-screen: root.immersive;
+                    toggle-full-screen => { root.immersive = !root.immersive; }
+                }
+
+                if Player.has-track: Controls {}
+            }
+        }
+
+        if root.debug-open: DebugOverlay {
+            x: parent.width - self.width - Theme.space-5;
+            y: Theme.space-5;
+        }
+    }
+}

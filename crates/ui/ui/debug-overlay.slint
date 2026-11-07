@@ -1,0 +1,66 @@
+import { Theme } from "theme.slint";
+import { Debug } from "player.slint";
+
+component Row inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+
+    spacing: Theme.space-4;
+
+    Text {
+        text: root.label;
+        font-size: Theme.text-small;
+        color: Theme.text-secondary;
+    }
+
+    Text {
+        text: root.value;
+        horizontal-alignment: right;
+        font-family: Theme.font-mono;
+        font-size: Theme.text-small;
+        color: Theme.text;
+    }
+}
+
+// Live memory use and Web API request count, toggled with Ctrl+Shift+D.
+export component DebugOverlay inherits Rectangle {
+    width: Theme.debug-width;
+    height: self.preferred-height;
+    border-radius: Theme.radius-lg;
+    background: Theme.panel;
+    border-width: Theme.hairline;
+    border-color: Theme.edge;
+
+    Timer {
+        interval: Theme.debug-sample;
+        running: root.visible;
+        triggered => { Debug.sample(); }
+    }
+
+    VerticalLayout {
+        padding: Theme.space-4;
+        spacing: Theme.space-2;
+
+        Text {
+            text: "Debug";
+            font-size: Theme.text-caption;
+            font-weight: Theme.weight-semibold;
+            color: Theme.text-tertiary;
+        }
+
+        Row {
+            label: "Private bytes";
+            value: Debug.private-bytes;
+        }
+
+        Row {
+            label: "Working set";
+            value: Debug.working-set;
+        }
+
+        Row {
+            label: "Web API requests";
+            value: Debug.web-api-requests;
+        }
+    }
+}

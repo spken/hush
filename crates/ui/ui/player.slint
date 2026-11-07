@@ -1,0 +1,38 @@
+// State the Controller pushes to the UI, and the commands the UI sends back.
+
+export enum Connection { connecting, ready, failed }
+
+export global Player {
+    in property <Connection> connection;
+    in property <string> error;
+    in property <bool> has-track;
+    in property <string> title;
+    in property <string> artists;
+    in property <int> duration-ms;
+    in property <int> position-ms;
+    in property <bool> playing;
+    in property <int> volume-max;
+    in property <int> volume: self.volume-max / 2;
+    out property <float> progress: self.duration-ms > 0 ? self.position-ms / self.duration-ms : 0;
+
+    callback play-pause();
+    callback next();
+    callback previous();
+    callback seek(int);
+    callback set-volume(int);
+    // Fires every `Theme.progress-tick` while playing, to move `position-ms` on.
+    callback tick();
+}
+
+export global Format {
+    // A position in milliseconds as "m:ss".
+    pure callback clock(int) -> string;
+}
+
+export global Debug {
+    in property <string> private-bytes;
+    in property <string> working-set;
+    in property <int> web-api-requests;
+    // Asks for fresh memory figures.
+    callback sample();
+}

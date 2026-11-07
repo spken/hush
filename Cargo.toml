@@ -11,6 +11,7 @@ publish = false
 model = { path = "crates/model" }
 auth = { path = "crates/auth" }
 playback = { path = "crates/playback" }
+ui = { path = "crates/ui" }
 
 anyhow = "1.0.104"
 arc-swap = "1.9.4"
@@ -35,6 +36,8 @@ slint = { version = "=1.18.1", default-features = false, features = [
     "backend-winit",
     "renderer-software",
 ] }
+slint-build = "=1.18.1"
+windows-sys = "0.61.2"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

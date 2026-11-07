@@ -1,0 +1,51 @@
+import { Theme } from "../theme.slint";
+import { Icons } from "icon.slint";
+import { IconButton } from "icon-button.slint";
+import { Player } from "../player.slint";
+
+// Previous, play/pause and next for the current track.
+export component Transport inherits HorizontalLayout {
+    in property <length> button-size: Theme.button-md;
+    in property <length> icon-size: Theme.icon-md;
+    in property <length> play-size: Theme.button-lg;
+    in property <length> play-icon-size: Theme.icon-lg;
+
+    alignment: center;
+    spacing: Theme.space-2;
+
+    VerticalLayout {
+        alignment: center;
+        IconButton {
+            icon: Icons.previous;
+            label: "Previous";
+            size: root.button-size;
+            icon-size: root.icon-size;
+            enabled: Player.has-track;
+            clicked => { Player.previous(); }
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        IconButton {
+            icon: Player.playing ? Icons.pause : Icons.play;
+            label: Player.playing ? "Pause" : "Play";
+            size: root.play-size;
+            icon-size: root.play-icon-size;
+            enabled: Player.has-track;
+            clicked => { Player.play-pause(); }
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        IconButton {
+            icon: Icons.next;
+            label: "Next";
+            size: root.button-size;
+            icon-size: root.icon-size;
+            enabled: Player.has-track;
+            clicked => { Player.next(); }
+        }
+    }
+}

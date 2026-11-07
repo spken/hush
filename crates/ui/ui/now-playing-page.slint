@@ -1,0 +1,129 @@
+import { Theme } from "theme.slint";
+import { Player, Format, Connection } from "player.slint";
+import { Icon, Icons } from "components/icon.slint";
+import { Artwork } from "components/artwork.slint";
+import { PillButton } from "components/pill-button.slint";
+
+// The current track set like a poster: art as large as the page allows, an oversized
+// title beside it. Without a track it says what to do instead.
+export component NowPlayingPage {
+    in property <bool> full-screen;
+    callback toggle-full-screen();
+
+    property <length> art-size: clamp(min(self.height - 2 * Theme.space-7, self.width * 0.45), Theme.art-min, Theme.art-max);
+
+    if Player.has-track: HorizontalLayout {
+        padding-left: Theme.space-8;
+        padding-right: Theme.space-8;
+        spacing: Theme.space-7;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Artwork {
+                size: root.art-size;
+                large: true;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+
+            VerticalLayout {
+                height: root.art-size;
+                max-width: Theme.poster-text-max;
+                alignment: end;
+                spacing: Theme.space-3;
+
+                Text {
+                    text: Player.title;
+                    wrap: word-wrap;
+                    font-family: Theme.font-display;
+                    font-size: Theme.text-poster;
+                    font-weight: Theme.weight-bold;
+                    letter-spacing: Theme.tracking-display;
+                    color: Theme.text;
+                }
+
+                Text {
+                    text: Player.artists;
+                    wrap: word-wrap;
+                    font-family: Theme.font-display;
+                    font-size: Theme.text-subtitle;
+                    color: Theme.text-secondary;
+                }
+
+                Text {
+                    text: Format.clock(Player.duration-ms);
+                    font-size: Theme.text-body;
+                    color: Theme.text-tertiary;
+                }
+
+                HorizontalLayout {
+                    padding-top: Theme.space-5;
+                    spacing: Theme.space-2;
+                    alignment: start;
+
+                    PillButton {
+                        primary: true;
+                        icon: Player.playing ? Icons.pause : Icons.play;
+                        text: Player.playing ? "Pause" : "Play";
+                        clicked => { Player.play-pause(); }
+                    }
+
+                    PillButton {
+                        icon: root.full-screen ? Icons.collapse : Icons.expand;
+                        text: root.full-screen ? "Exit Full Screen" : "Full Screen";
+                        clicked => { root.toggle-full-screen(); }
+                    }
+                }
+            }
+        }
+    }
+
+    if !Player.has-track: VerticalLayout {
+        alignment: center;
+        spacing: Theme.space-3;
+
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                commands: Icons.note;
+                width: Theme.icon-lg;
+                height: Theme.icon-lg;
+                fill: Player.connection == Connection.failed ? Theme.danger : Theme.text-tertiary;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            padding-top: Theme.space-2;
+
+            Text {
+                text: Player.connection == Connection.connecting ? "Connecting to Spotify…"
+                    : Player.connection == Connection.failed ? "Couldn’t connect to Spotify"
+                    : "Nothing playing";
+                font-family: Theme.font-display;
+                font-size: Theme.text-title;
+                font-weight: Theme.weight-bold;
+                letter-spacing: Theme.tracking-display;
+                color: Theme.text;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Text {
+                max-width: Theme.empty-max-width;
+                text: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
+                    : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
+                    : "In Spotify on your phone or computer, open the device list and choose Hush.";
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-size: Theme.text-body;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+}

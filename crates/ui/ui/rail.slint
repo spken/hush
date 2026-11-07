@@ -1,0 +1,46 @@
+import { Theme } from "theme.slint";
+import { Player, Connection } from "player.slint";
+import { Icons } from "components/icon.slint";
+import { IconButton } from "components/icon-button.slint";
+
+// The slim navigation rail on the left edge, with the Spotify Connect status at its foot.
+export component Rail inherits VerticalLayout {
+    width: Theme.rail-width;
+    padding-top: Theme.space-5;
+    padding-bottom: Theme.space-5;
+    spacing: Theme.space-3;
+
+    HorizontalLayout {
+        alignment: center;
+        // The only page so far, so it is always the selected one.
+        IconButton {
+            icon: Icons.play;
+            label: "Now Playing";
+            size: Theme.button-md;
+            icon-size: Theme.icon-sm;
+            selected: true;
+        }
+    }
+
+    Rectangle {
+        vertical-stretch: 1;
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        accessible-role: text;
+        accessible-label: Player.connection == Connection.ready ? "Connected to Spotify"
+            : Player.connection == Connection.connecting ? "Connecting to Spotify"
+            : "Not connected to Spotify";
+
+        Rectangle {
+            width: Theme.status-dot;
+            height: Theme.status-dot;
+            border-radius: self.width / 2;
+            background: Player.connection == Connection.ready ? Theme.success
+                : Player.connection == Connection.connecting ? Theme.warning
+                : Theme.danger;
+            animate background { duration: Theme.duration-normal; easing: ease-out; }
+        }
+    }
+}

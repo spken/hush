@@ -1,0 +1,90 @@
+// Every colour, size, font and duration the UI uses. Other files never use literals.
+export global Theme {
+    // Colour: one neutral canvas that album art will later flood; white as the accent
+    // until art provides one.
+    out property <color> canvas: #0c0c0d;
+    out property <color> canvas-minimized: #0c0c0c;
+    out property <color> panel: #18181b;
+    out property <color> edge: #ffffff17;
+    out property <color> hover: #ffffff12;
+    out property <color> pressed: #ffffff1f;
+    out property <color> selected: #ffffff1a;
+    out property <color> text: #fffffff5;
+    out property <color> text-secondary: #ffffff99;
+    out property <color> text-tertiary: #ffffff59;
+    out property <color> accent: #ffffff;
+    out property <color> accent-hover: #e6e6e6;
+    out property <color> accent-pressed: #cccccc;
+    out property <color> on-accent: #0c0c0d;
+    out property <color> seek-track: #ffffff24;
+    out property <color> art: #1d1d20;
+    out property <color> art-glyph: #ffffff2e;
+    out property <color> success: #30d158;
+    out property <color> warning: #ffd60a;
+    out property <color> danger: #ff453a;
+
+    // Spacing on a 4 px grid.
+    out property <length> space-2: 8px;
+    out property <length> space-3: 12px;
+    out property <length> space-4: 16px;
+    out property <length> space-5: 24px;
+    out property <length> space-6: 32px;
+    out property <length> space-7: 48px;
+    out property <length> space-8: 64px;
+
+    // Corner radii.
+    out property <length> radius-sm: 4px;
+    out property <length> radius-lg: 12px;
+
+    // Type scale: poster-size display over a quiet body.
+    out property <string> font: "Segoe UI Variable Text";
+    out property <string> font-display: "Segoe UI Variable Display";
+    out property <string> font-mono: "Cascadia Mono";
+    out property <length> text-caption: 11px;
+    out property <length> text-small: 12px;
+    out property <length> text-body: 13px;
+    out property <length> text-subtitle: 22px;
+    out property <length> text-title: 30px;
+    out property <length> text-poster: 64px;
+    out property <length> tracking-display: -1.5px;
+    out property <int> weight-semibold: 600;
+    out property <int> weight-bold: 700;
+
+    // Window and regions.
+    out property <length> window-width: 1280px;
+    out property <length> window-height: 800px;
+    out property <length> window-min-width: 960px;
+    out property <length> window-min-height: 600px;
+    out property <length> rail-width: 72px;
+    out property <length> controls-height: 88px;
+    out property <length> volume-width: 104px;
+    out property <length> status-dot: 8px;
+    out property <length> empty-max-width: 380px;
+    out property <length> poster-text-max: 600px;
+    out property <length> debug-width: 248px;
+    out property <length> time-width: 40px;
+    out property <length> hairline: 1px;
+
+    // Artwork.
+    out property <length> art-min: 200px;
+    out property <length> art-max: 640px;
+    out property <float> art-glyph-scale: 0.3;
+
+    // Controls.
+    out property <length> icon-sm: 16px;
+    out property <length> icon-md: 20px;
+    out property <length> icon-lg: 28px;
+    out property <length> button-md: 40px;
+    out property <length> button-lg: 52px;
+    out property <length> pill-height: 44px;
+    out property <length> pill-min-width: 128px;
+    out property <length> seek-thickness: 4px;
+    out property <length> seek-thumb: 12px;
+    out property <length> seek-hit: 16px;
+
+    // Motion.
+    out property <duration> duration-fast: 200ms;
+    out property <duration> duration-normal: 250ms;
+    out property <duration> progress-tick: 250ms;
+    out property <duration> debug-sample: 1s;
+}

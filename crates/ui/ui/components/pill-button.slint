@@ -1,0 +1,52 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "icon.slint";
+
+// A capsule button with a glyph and a label; `primary` fills it with the accent colour,
+// otherwise it is quiet until hovered.
+export component PillButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <bool> primary;
+    callback clicked();
+
+    height: Theme.pill-height;
+    min-width: Theme.pill-min-width;
+    border-radius: self.height / 2;
+    background: root.primary
+        ? (touch.pressed ? Theme.accent-pressed : touch.has-hover ? Theme.accent-hover : Theme.accent)
+        : (touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent);
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+
+    HorizontalLayout {
+        padding-left: Theme.space-5;
+        padding-right: Theme.space-6;
+        spacing: Theme.space-2;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                commands: root.icon;
+                width: Theme.icon-sm;
+                height: Theme.icon-sm;
+                fill: root.primary ? Theme.on-accent : Theme.text;
+            }
+        }
+
+        Text {
+            text: root.text;
+            vertical-alignment: center;
+            font-size: Theme.text-body;
+            font-weight: Theme.weight-semibold;
+            color: root.primary ? Theme.on-accent : Theme.text;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

@@ -1,0 +1,72 @@
+import { Theme } from "../theme.slint";
+
+// A horizontal bar for a fraction from 0 to 1 that the user can click or drag. While
+// dragging it follows the pointer; `committed` fires once, on release.
+export component SeekBar {
+    in property <float> value;
+    in property <bool> enabled: true;
+    in property <length> thickness: Theme.seek-thickness;
+    // How long the fill glides to a new `value`; the progress bar matches its update tick.
+    in property <duration> glide: 0ms;
+    in property <string> label;
+    out property <bool> dragging: touch.pressed;
+    // Set from pointer events rather than bound, so labels that show it cannot feed back
+    // into the layout that sizes the bar.
+    out property <float> drag-value;
+    callback committed(float);
+
+    property <bool> active: root.enabled && (touch.has-hover || touch.pressed);
+    property <float> settled: clamp(root.value, 0, 1);
+    animate settled { duration: root.glide; easing: linear; }
+    property <float> shown: touch.pressed ? root.drag-value : root.settled;
+
+    function follow-pointer() {
+        root.drag-value = clamp(touch.mouse-x / max(1px, root.width), 0, 1);
+    }
+
+    min-height: Theme.seek-hit;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: round(root.shown * 100) + "%";
+
+    Rectangle {
+        y: (parent.height - self.height) / 2;
+        height: root.thickness;
+        border-radius: root.thickness / 2;
+        background: Theme.seek-track;
+        clip: true;
+
+        Rectangle {
+            x: 0;
+            width: parent.width * root.shown;
+            background: root.active ? Theme.text : Theme.text-secondary;
+            animate background { duration: Theme.duration-fast; easing: ease-out; }
+        }
+    }
+
+    Rectangle {
+        visible: root.active;
+        x: root.width * root.shown - self.width / 2;
+        y: (parent.height - self.height) / 2;
+        width: Theme.seek-thumb;
+        height: Theme.seek-thumb;
+        border-radius: self.width / 2;
+        background: Theme.text;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if (event.button != PointerEventButton.left) {
+                return;
+            }
+            if (event.kind == PointerEventKind.down) {
+                root.follow-pointer();
+            } else if (event.kind == PointerEventKind.up) {
+                root.committed(root.drag-value);
+            }
+        }
+        moved => { root.follow-pointer(); }
+    }
+}

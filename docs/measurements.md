@@ -47,3 +47,21 @@ registered; playing is read from Task Manager during the exit test.
 | --- | --- | --- | --- |
 | registered, idle | 4.2 | 21.1 | 0 |
 | playing | ~10 | — | 0 |
+
+## M3 — UI shell (Nov 7, 2026)
+
+`cargo build --release -p app`, software renderer, the art-led UI at 1280×800 and
+maximized (1920×1080). "Bar animating" has a track loaded and the progress bar gliding
+between its 250 ms ticks; it was driven by sample data, not real playback, so the audio
+chain is not included (M2 measured it at ~6 MB more). CPU is averaged over 10 s.
+
+| State | Window | Private WS (MB) | Working set (MB) | CPU (% of 1 core) | Web API requests |
+| --- | --- | --- | --- | --- | --- |
+| connected, idle | 1280×800 | 9.1 | 30.8 | 0.0 | 0 |
+| connected, idle | maximized | 12.6 | 34.2 | 0.0 | 0 |
+| bar animating | 1280×800 | 9.5 | 31.1 | 3.6 | 0 |
+| bar animating | maximized | 12.8 | 34.4 | 3.9 | 0 |
+
+**Result:** the software renderer stays. The real UI costs far less than the 70 MB budget,
+and the continuously animated progress bar costs under 4% of one core. The 10-minute
+playback exit test (driven from a phone) is still to be run by hand.

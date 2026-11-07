@@ -1,0 +1,39 @@
+import { Theme } from "../theme.slint";
+import { Icon, Icons } from "icon.slint";
+import { SeekBar } from "seek-bar.slint";
+import { Player } from "../player.slint";
+
+// The device volume slider between a quiet and a loud speaker glyph.
+export component Volume inherits HorizontalLayout {
+    in property <length> bar-width: Theme.volume-width;
+
+    alignment: center;
+    spacing: Theme.space-2;
+
+    VerticalLayout {
+        alignment: center;
+        Icon {
+            commands: Icons.speaker;
+            width: Theme.icon-sm;
+            height: Theme.icon-sm;
+            fill: Theme.text-secondary;
+        }
+    }
+
+    SeekBar {
+        width: root.bar-width;
+        label: "Volume";
+        value: Player.volume / Player.volume-max;
+        committed(fraction) => { Player.set-volume(round(fraction * Player.volume-max)); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        Icon {
+            commands: Icons.speaker-loud;
+            width: Theme.icon-sm;
+            height: Theme.icon-sm;
+            fill: Theme.text-secondary;
+        }
+    }
+}
