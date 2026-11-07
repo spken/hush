@@ -1,9 +1,12 @@
 //! Hush's Spotify Connect device: librespot session, Spirc and player.
 
 mod device;
+mod eq;
 mod event;
+mod sink;
 
 pub use device::{Device, Events};
+pub use eq::EQ_BANDS_HZ;
 
 /// Ways the librespot session or player can fail.
 #[derive(Debug, thiserror::Error)]

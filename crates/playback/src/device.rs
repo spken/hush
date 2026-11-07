@@ -1,19 +1,24 @@
 use std::{fmt, path::PathBuf, sync::Arc};
 
+use arc_swap::ArcSwap;
 use librespot_connect::{ConnectConfig, Spirc};
 use librespot_core::{
     Session, SessionConfig, authentication::Credentials, cache::Cache, config::DeviceType,
 };
 use librespot_playback::{
-    audio_backend,
-    config::{AudioFormat, PlayerConfig},
-    mixer::{Mixer, MixerConfig, softmixer::SoftMixer},
+    config::{Bitrate, PlayerConfig},
+    mixer::{Mixer, MixerConfig, NoOpVolume, softmixer::SoftMixer},
     player::{Player, PlayerEventChannel},
 };
 use model::Event;
 use tokio::task::JoinHandle;
 
-use crate::{Error, event};
+use crate::{
+    EQ_BANDS_HZ, Error,
+    eq::{self, Coefficients},
+    event,
+    sink::EqSink,
+};
 
 const NAME: &str = "Hush";
 
@@ -22,6 +27,7 @@ const NAME: &str = "Hush";
 pub struct Device {
     spirc: Spirc,
     task: JoinHandle<()>,
+    eq: Arc<ArcSwap<Coefficients>>,
 }
 
 /// The device's playback events, in the order they happened.
@@ -52,25 +58,36 @@ impl Device {
         };
         let session = Session::new(SessionConfig::default(), Some(cache));
 
+        let eq = Arc::new(ArcSwap::from_pointee(eq::coefficients(0.0, &[0.0; _])));
         let mixer = Arc::new(SoftMixer::open(MixerConfig::default())?);
-        // librespot lists its default backend (rodio) first.
-        let (_, backend) = audio_backend::BACKENDS[0];
-        let player = Player::new(
-            PlayerConfig::default(),
-            session.clone(),
-            mixer.get_soft_volume(),
-            move || backend(None, AudioFormat::default()),
-        );
+        // The player leaves volume alone; `EqSink` applies it after the EQ.
+        let (sink_eq, volume) = (eq.clone(), mixer.get_soft_volume());
+        let config = PlayerConfig {
+            bitrate: Bitrate::Bitrate320,
+            normalisation: true,
+            ditherer: None,
+            ..PlayerConfig::default()
+        };
+        let player = Player::new(config, session.clone(), Box::new(NoOpVolume), move || {
+            Box::new(EqSink::new(sink_eq, volume))
+        });
         let events = Events(player.get_player_event_channel());
 
-        let config = ConnectConfig {
+        let connect = ConnectConfig {
             name: NAME.to_owned(),
             device_type: DeviceType::Computer,
             ..ConnectConfig::default()
         };
-        let (spirc, run) = Spirc::new(config, session, credentials, player, mixer).await?;
+        let (spirc, run) = Spirc::new(connect, session, credentials, player, mixer).await?;
         let task = tokio::spawn(run);
-        Ok((Self { spirc, task }, events))
+        Ok((Self { spirc, task, eq }, events))
+    }
+
+    /// Sets the equalizer: a preamp and one gain per band in `EQ_BANDS_HZ`, all in dB.
+    /// The change is heard within ~120 ms, ramped so it does not click.
+    pub fn set_eq(&self, preamp_db: f64, gains_db: &[f64; EQ_BANDS_HZ.len()]) {
+        self.eq
+            .store(Arc::new(eq::coefficients(preamp_db, gains_db)));
     }
 
     /// Pauses playback, removes the device from Spotify Connect and waits for it to stop.

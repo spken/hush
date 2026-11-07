@@ -37,3 +37,13 @@ where fewer frames are drawn, so these CPU figures are an upper bound.
 15–30 MB estimate). Maximized, it renders ~180 fps — more frames than a 144 Hz display
 shows — at 29.5% of one core, just over the 25% bar under a sustained scroll that a real
 flick only reaches briefly. Re-check with the real UI in M3.
+
+## M2 — Connect device and audio chain (Nov 7, 2026)
+
+`cargo build --release -p playback --example m2`. Idle is 12 s after the device
+registered; playing is read from Task Manager during the exit test.
+
+| State | Private WS (MB) | Working set (MB) | Web API requests |
+| --- | --- | --- | --- |
+| registered, idle | 4.2 | 21.1 | 0 |
+| playing | ~10 | — | 0 |

@@ -13,14 +13,17 @@ auth = { path = "crates/auth" }
 playback = { path = "crates/playback" }
 
 anyhow = "1.0.104"
+arc-swap = "1.9.4"
+cpal = "0.18.2"
 keyring = "4.2.0"
 librespot-connect = { version = "=0.8.0", default-features = false }
 librespot-core = "=0.8.0"
 librespot-metadata = { version = "=0.8.0", default-features = false }
-librespot-playback = "=0.8.0"
+librespot-playback = { version = "=0.8.0", default-features = false, features = ["native-tls"] }
 memory-stats = "1.2.0"
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }
 open = "5.4.5"
+rtrb = "0.4.1"
 reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
 thiserror = "2.0.21"
 tokio = "1.54.1"

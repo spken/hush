@@ -1,5 +1,6 @@
 //! Registers "Hush" as a Spotify Connect device, then logs its playback events and, every
-//! 250 ms while it moves, the interpolated position until Ctrl+C. Logs memory use on exit.
+//! 250 ms while it moves, the interpolated position until Ctrl+C. Enter toggles a +6 dB
+//! boost at 1 kHz. Logs memory use on exit.
 //!
 //! `cargo run -p playback --example m2`
 
@@ -11,9 +12,12 @@ use std::{
 
 use anyhow::Context;
 use model::Anchor;
-use playback::Device;
+use playback::{Device, EQ_BANDS_HZ};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 const TICK: Duration = Duration::from_millis(250);
+const BOOST_HZ: u16 = 1000;
+const BOOST_DB: f64 = 6.0;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> anyhow::Result<()> {
@@ -28,6 +32,8 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("\"Hush\" is in the Spotify Connect device list");
 
     let mut anchor = Anchor::new(Instant::now());
+    let mut boosted = false;
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
     let mut logged = None;
     let mut tick = tokio::time::interval(TICK);
     let stop = tokio::signal::ctrl_c();
@@ -44,6 +50,12 @@ async fn main() -> anyhow::Result<()> {
                 if logged.replace(position_ms) != Some(position_ms) {
                     tracing::info!(position = clock(position_ms));
                 }
+            }
+            Ok(Some(_)) = lines.next_line() => {
+                boosted = !boosted;
+                let gains = EQ_BANDS_HZ.map(|hz| if boosted && hz == BOOST_HZ { BOOST_DB } else { 0.0 });
+                device.set_eq(0.0, &gains);
+                tracing::info!(boosted, "1 kHz boost");
             }
             _ = &mut stop => break,
         }
