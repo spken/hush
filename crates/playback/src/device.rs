@@ -90,6 +90,32 @@ impl Device {
             .store(Arc::new(eq::coefficients(preamp_db, gains_db)));
     }
 
+    /// Pauses when playing, resumes when paused. Like every transport control, it does
+    /// nothing while another device is active.
+    pub fn play_pause(&self) -> Result<(), Error> {
+        Ok(self.spirc.play_pause()?)
+    }
+
+    /// Skips to the next track.
+    pub fn next(&self) -> Result<(), Error> {
+        Ok(self.spirc.next()?)
+    }
+
+    /// Restarts the track, or goes to the previous one within its first 3 seconds.
+    pub fn previous(&self) -> Result<(), Error> {
+        Ok(self.spirc.prev()?)
+    }
+
+    /// Jumps to `position_ms` in the current track.
+    pub fn seek(&self, position_ms: u32) -> Result<(), Error> {
+        Ok(self.spirc.set_position_ms(position_ms)?)
+    }
+
+    /// Sets the volume, from 0 to `u16::MAX`, and reports it to Spotify Connect.
+    pub fn set_volume(&self, volume: u16) -> Result<(), Error> {
+        Ok(self.spirc.set_volume(volume)?)
+    }
+
     /// Pauses playback, removes the device from Spotify Connect and waits for it to stop.
     pub async fn shutdown(self) -> Result<(), Error> {
         self.spirc.shutdown()?;

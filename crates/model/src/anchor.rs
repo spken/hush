@@ -37,6 +37,11 @@ impl Anchor {
         };
     }
 
+    /// Whether the position is advancing.
+    pub fn is_playing(&self) -> bool {
+        self.is_playing
+    }
+
     /// The playback position at `now`.
     pub fn position_at(&self, now: Instant) -> u32 {
         if !self.is_playing {
