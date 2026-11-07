@@ -83,16 +83,26 @@ impl TokenProvider {
     pub async fn access_token(&self) -> Result<String, Error> {
         let mut token = self.token.lock().await;
         if Instant::now() >= token.refresh_at {
-            let response = refresh_request(&self.client, &self.http, &token.refresh).await?;
-            *token = accept(response, Some(token.refresh.clone())).await?;
-            tracing::info!("access token refreshed");
+            self.refresh(&mut token).await?;
         }
         Ok(token.access.secret().clone())
     }
 
-    /// Marks the access token as expired, so the next `access_token` call refreshes it.
-    pub async fn expire(&self) {
-        self.token.lock().await.refresh_at = Instant::now();
+    /// Returns a new access token after the Web API rejected `rejected`. Refreshes only if
+    /// no other caller has replaced that token already.
+    pub async fn refresh_rejected(&self, rejected: &str) -> Result<String, Error> {
+        let mut token = self.token.lock().await;
+        if token.access.secret() == rejected {
+            self.refresh(&mut token).await?;
+        }
+        Ok(token.access.secret().clone())
+    }
+
+    async fn refresh(&self, token: &mut Token) -> Result<(), Error> {
+        let response = refresh_request(&self.client, &self.http, &token.refresh).await?;
+        *token = accept(response, Some(token.refresh.clone())).await?;
+        tracing::info!("access token refreshed");
+        Ok(())
     }
 }
 

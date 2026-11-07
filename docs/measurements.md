@@ -65,3 +65,19 @@ chain is not included (M2 measured it at ~6 MB more). CPU is averaged over 10 s.
 **Result:** the software renderer stays. The real UI costs far less than the 70 MB budget,
 and the continuously animated progress bar costs under 4% of one core. The 10-minute
 playback exit test (driven from a phone) is still to be run by hand.
+
+## M4 — Gateway and cache (Nov 7, 2026)
+
+`cargo build --release -p app`, 1280×800, read 15 s after launch with the device
+registered and nothing playing. The only Web API call is `/me` at startup (24 h TTL).
+
+| Launch | Private WS (MB) | Working set (MB) | Web API requests |
+| --- | --- | --- | --- |
+| first (empty `http_cache`) | 9.7 | 32.6 | 1 |
+| second (warm cache) | 9.4 | 32.3 | 0 |
+
+`/me` returns an `ETag`. `cargo run -p webapi --example m4` passes all five exit checks
+against a `wiremock` server: 50 concurrent identical GETs send 1 request, `Retry-After: 5`
+holds every lane for at least 5 s, `QUOTA_EXCEEDED` opens the breaker and fails a queued
+P3 request without sending it, a 401 sends exactly one retry with a refreshed token, and a
+cancelled queued request is never sent.

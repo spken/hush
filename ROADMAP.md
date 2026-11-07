@@ -24,6 +24,8 @@ duplication; none changes the product.
 | 6 | M2 = Connect device **and** custom `EqSink` + mixer | Split into **M2a** (Connect) and **M2b** (audio chain) | Settle the Connect risk before writing audio DSP. |
 | 7 | "glibc can fragment" as the `mimalloc` reason | Measure `mimalloc` vs the Windows segment heap | Target is Windows; glibc does not apply. Still measure. |
 | 8 | Crates created up front | A crate is created in the milestone that first needs it | No empty crates, no speculative code. |
+| 9 | `kit::ByteLru` and the `sync_cursor`/`settings` tables arrive in M4 | Each arrives with its first user: `ByteLru` in M7, `sync_cursor` in M5, `settings` in M8 (each table in its own numbered migration) | No unused code or schema. |
+| 10 | `wiremock` tests for the gateway | `webapi/examples/m4.rs` runs the exit criteria against a `wiremock` server | AGENTS.md: no tests; exit criteria are checked by running examples. |
 
 ---
 
@@ -122,11 +124,11 @@ Renderer choice confirmed with real UI.
 
 Crates created: `kit`, `store`, `webapi`.
 
-1. `kit`: `Req<T>` (reply `oneshot` + `CancellationToken`), `Coalescer<K, V>`,
-   `backoff(attempt)`, `ByteLru<K, V>` over `quick_cache`. Unit-tested.
+1. `kit`: `Req<T>` (reply `oneshot` + `CancellationToken`) with `call`, `Coalescer<K, V>`,
+   `backoff(attempt)`, `jitter(max)`.
 2. `store`: one SQLite connection on a blocking thread; migrations as numbered SQL files
    embedded with `include_str!`; `PRAGMA cache_size=-2048`, WAL, mmap off.
-   Tables: `http_cache`, `sync_cursor`, `settings`.
+   Table: `http_cache`.
 3. `webapi::ApiGateway`:
    1. Four priority lanes (P0–P3) with aging (P3 within ~60 s).
    2. Adaptive token bucket: 20 / 30 s, burst 4; halve for 10 min on 429; +1 per 5 clean min.
@@ -139,7 +141,7 @@ Crates created: `kit`, `store`, `webapi`.
 4. Typed endpoint functions: one generic `get<T: DeserializeOwned>(path, lane, ttl)`; each
    endpoint is a one-line call to it. All model fields `Option<T>`.
 5. Metrics (per endpoint per minute, 429s by reason, cache hit rate) into the debug overlay.
-6. `wiremock` tests for each exit criterion below.
+6. `webapi/examples/m4.rs` checks each exit criterion below against a `wiremock` server.
 
 **Exit test:** 50 concurrent identical GETs → 1 request; `Retry-After: 5` stops every lane
 ≥ 5 s; `QUOTA_EXCEEDED` opens the breaker; 401 → exactly one refresh; cancelled queued
@@ -150,7 +152,8 @@ requests are never sent.
 ## M5 — Library
 
 1. `store`: entity tables (`track`, `album`, `artist`, `playlist`), membership tables
-   (`list_item(list_id, pos, entity_key, added_at)`), FTS5 index over titles/artists/albums.
+   (`list_item(list_id, pos, entity_key, added_at)`), FTS5 index over titles/artists/albums,
+   `sync_cursor`.
 2. `catalog::sync`: one incremental-sync function parameterised by endpoint — newest first,
    `limit=50`, stop at the first known `(id, added_at)`. Used for Liked Songs **and** saved
    albums.
@@ -196,8 +199,8 @@ with no other Spotify app open, at 0 Web API requests.
 
 1. Debounce 300 ms, Enter fires immediately, minimum 2 characters.
 2. One request: `type=track,artist,album,playlist&limit=10`; newer query cancels older.
-3. In-memory LRU (200 queries, 10 min) — reuse `kit::ByteLru` or a count-bounded variant,
-   not a new cache.
+3. In-memory LRU (200 queries, 10 min): add `kit::ByteLru<K, V>` over `quick_cache` here;
+   images reuse it in M8.
 4. "Show more" per type pages with `offset`.
 5. Local library search via FTS5 shown first, 0 requests.
 
@@ -220,7 +223,7 @@ Crate created: `images`.
    playing, hover/press motion at 200–250 ms ease-out.
 8. Windows: `souvlaki` media overlay + media keys.
 9. Settings → Playback: EQ (presets, 10 sliders, preamp, bypass), normalisation, gapless,
-   output device list (`cpal`), persisted in `store.settings`.
+   output device list (`cpal`), persisted in a new `store` `settings` table.
 
 **Exit test:** after 30 min of mixed browsing, decoded image bytes ≤ 16 MB, peak RSS
 ≤ 100 MB, steady RSS ≤ 85 MB.

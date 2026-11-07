@@ -22,7 +22,13 @@ component Row inherits HorizontalLayout {
     }
 }
 
-// Live memory use and Web API request count, toggled with Ctrl+Shift+D.
+component Caption inherits Text {
+    font-size: Theme.text-caption;
+    font-weight: Theme.weight-semibold;
+    color: Theme.text-tertiary;
+}
+
+// Live memory use and Web API request counts, toggled with Ctrl+Shift+D.
 export component DebugOverlay inherits Rectangle {
     width: Theme.debug-width;
     height: self.preferred-height;
@@ -41,11 +47,8 @@ export component DebugOverlay inherits Rectangle {
         padding: Theme.space-4;
         spacing: Theme.space-2;
 
-        Text {
+        Caption {
             text: "Debug";
-            font-size: Theme.text-caption;
-            font-weight: Theme.weight-semibold;
-            color: Theme.text-tertiary;
         }
 
         Row {
@@ -61,6 +64,30 @@ export component DebugOverlay inherits Rectangle {
         Row {
             label: "Web API requests";
             value: Debug.web-api-requests;
+        }
+
+        Row {
+            label: "Cache hit rate";
+            value: Debug.cache-hit-rate;
+        }
+
+        Row {
+            label: "429 rate limit";
+            value: Debug.rate-limited;
+        }
+
+        Row {
+            label: "429 quota";
+            value: Debug.quota-exceeded;
+        }
+
+        if Debug.this-minute.length > 0: Caption {
+            text: "This minute";
+        }
+
+        for endpoint in Debug.this-minute: Row {
+            label: endpoint.endpoint;
+            value: endpoint.requests;
         }
     }
 }

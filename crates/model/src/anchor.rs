@@ -28,7 +28,7 @@ impl Anchor {
             Event::Paused { position_ms } => (position_ms, false),
             Event::Seeked { position_ms } => (position_ms, self.is_playing),
             Event::Stopped => (0, false),
-            Event::TrackChanged(_) | Event::Volume(_) => return,
+            Event::TrackChanged(_) | Event::Volume(_) | Event::Degraded(_) => return,
         };
         *self = Self {
             position_ms,

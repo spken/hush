@@ -4,8 +4,10 @@
 use std::{fmt, time::Instant};
 
 use model::{Anchor, Command, Track};
-use slint::{ComponentHandle, SharedString};
-use ui::{Connection, Format, MainWindow, Player};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use tokio::sync::watch;
+use ui::{Connection, EndpointRequests, Format, MainWindow, Player};
+use webapi::Metrics;
 
 use crate::controller;
 
@@ -72,6 +74,18 @@ impl View {
         });
     }
 
+    /// Shows the Web API gateway's counts in the debug overlay from now on.
+    pub(crate) fn web_api(&self, metrics: watch::Receiver<Metrics>) {
+        self.update(move |window| {
+            let weak = window.as_weak();
+            window.global::<ui::Debug>().on_sample(move || {
+                if let Some(window) = weak.upgrade() {
+                    sample(&window, Some(&metrics.borrow().clone()));
+                }
+            });
+        });
+    }
+
     fn update(&self, change: impl FnOnce(MainWindow) + Send + 'static) {
         // Fails only after the event loop quit: the window is gone and needs no update.
         if let Err(error) = self.0.upgrade_in_event_loop(change) {
@@ -117,20 +131,43 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {
-        let Some(window) = weak.upgrade() else { return };
-        let Some(memory) = memory_stats::memory_stats() else {
-            tracing::warn!("memory stats unavailable");
-            return;
-        };
-        let debug = window.global::<ui::Debug>();
-        debug.set_private_bytes(megabytes(memory.virtual_mem));
-        debug.set_working_set(megabytes(memory.physical_mem));
+        if let Some(window) = weak.upgrade() {
+            sample(&window, None);
+        }
     });
 }
 
-/// Milliseconds as a Slint `int`, saturating past ~24 days.
-fn int(ms: u32) -> i32 {
-    i32::try_from(ms).unwrap_or(i32::MAX)
+/// Fills the debug overlay with memory use and, once the Web API is up, its counts.
+fn sample(window: &MainWindow, web_api: Option<&Metrics>) {
+    let debug = window.global::<ui::Debug>();
+    if let Some(memory) = memory_stats::memory_stats() {
+        debug.set_private_bytes(megabytes(memory.virtual_mem));
+        debug.set_working_set(megabytes(memory.physical_mem));
+    } else {
+        tracing::warn!("memory stats unavailable");
+    }
+    let Some(metrics) = web_api else { return };
+    debug.set_web_api_requests(int(metrics.requests));
+    let lookups = u64::from(metrics.cache_hits) + u64::from(metrics.cache_misses);
+    if let Some(rate) = (u64::from(metrics.cache_hits) * 100).checked_div(lookups) {
+        debug.set_cache_hit_rate(format!("{rate}%").into());
+    }
+    debug.set_rate_limited(int(metrics.rate_limited));
+    debug.set_quota_exceeded(int(metrics.quota_exceeded));
+    let this_minute: Vec<EndpointRequests> = metrics
+        .this_minute
+        .iter()
+        .map(|(endpoint, requests)| EndpointRequests {
+            endpoint: endpoint.as_ref().into(),
+            requests: int(*requests),
+        })
+        .collect();
+    debug.set_this_minute(ModelRc::new(VecModel::from(this_minute)));
+}
+
+/// A count or milliseconds as a Slint `int`, saturating at `i32::MAX`.
+fn int(value: u32) -> i32 {
+    i32::try_from(value).unwrap_or(i32::MAX)
 }
 
 /// Bytes in MiB with one decimal, the unit Task Manager calls MB.

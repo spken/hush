@@ -29,10 +29,20 @@ export global Format {
     pure callback clock(int) -> string;
 }
 
+// Web API requests to one endpoint in the current minute.
+export struct EndpointRequests {
+    endpoint: string,
+    requests: int,
+}
+
 export global Debug {
     in property <string> private-bytes;
     in property <string> working-set;
     in property <int> web-api-requests;
+    in property <string> cache-hit-rate: "–";
+    in property <int> rate-limited;
+    in property <int> quota-exceeded;
+    in property <[EndpointRequests]> this-minute;
     // Asks for fresh memory figures.
     callback sample();
 }

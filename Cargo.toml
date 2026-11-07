@@ -9,13 +9,18 @@ publish = false
 
 [workspace.dependencies]
 model = { path = "crates/model" }
+kit = { path = "crates/kit" }
+store = { path = "crates/store" }
 auth = { path = "crates/auth" }
+webapi = { path = "crates/webapi" }
 playback = { path = "crates/playback" }
 ui = { path = "crates/ui" }
 
 anyhow = "1.0.104"
 arc-swap = "1.9.4"
+bytes = "1.12.1"
 cpal = "0.18.2"
+dotenvy = "0.15.7"
 keyring = "4.2.0"
 librespot-connect = { version = "=0.8.0", default-features = false }
 librespot-core = "=0.8.0"
@@ -25,9 +30,13 @@ memory-stats = "1.2.0"
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }
 open = "5.4.5"
 rtrb = "0.4.1"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
 thiserror = "2.0.21"
 tokio = "1.54.1"
+tokio-util = "0.7.20"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 slint = { version = "=1.18.1", default-features = false, features = [
@@ -38,6 +47,7 @@ slint = { version = "=1.18.1", default-features = false, features = [
 ] }
 slint-build = "=1.18.1"
 windows-sys = "0.61.2"
+wiremock = "0.6.5"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

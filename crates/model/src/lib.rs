@@ -5,9 +5,11 @@ mod command;
 mod error;
 mod event;
 mod id;
+mod profile;
 
 pub use anchor::Anchor;
 pub use command::Command;
 pub use error::Error;
-pub use event::{Event, Track};
+pub use event::{Degraded, Event, Track};
 pub use id::{SpotifyId, TrackId};
+pub use profile::Profile;

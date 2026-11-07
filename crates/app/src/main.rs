@@ -6,7 +6,7 @@ mod view;
 #[allow(unsafe_code)]
 mod windows;
 
-use std::{env, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use anyhow::Context;
 use slint::{
@@ -21,8 +21,19 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    if let Err(error) = dotenvy::dotenv()
+        && !error.not_found()
+    {
+        tracing::warn!(%error, ".env not loaded");
+    }
+    let client_id = env::var("HUSH_CLIENT_ID")
+        .ok()
+        .filter(|id| !id.is_empty())
+        .map(String::into_boxed_str);
     let cache_dir =
         PathBuf::from(env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?).join("Hush");
+    fs::create_dir_all(&cache_dir).context("data folder")?;
+    let store = store::Store::open(&cache_dir.join("hush.db")).context("database")?;
     // The OAuth token exchange must not follow redirects.
     let http = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -44,7 +55,9 @@ fn main() -> anyhow::Result<()> {
     let window = ui::MainWindow::new()?;
     let deps = controller::Deps {
         cache_dir,
+        client_id,
         http,
+        store,
         view: view::View::new(&window),
     };
     let (controller, task) = {
