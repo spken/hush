@@ -6,7 +6,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+librespot-connect = { workspace = true }
 librespot-core = { workspace = true }
+librespot-metadata = { workspace = true }
 librespot-playback = { workspace = true }
 model = { workspace = true }
 thiserror = { workspace = true }
@@ -15,10 +17,9 @@ tokio = { workspace = true, features = ["rt"] }
 [dev-dependencies]
 anyhow = { workspace = true }
 auth = { workspace = true }
-dotenvy = { workspace = true }
 memory-stats = { workspace = true }
 reqwest = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 

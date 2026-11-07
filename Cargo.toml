@@ -13,9 +13,10 @@ auth = { path = "crates/auth" }
 playback = { path = "crates/playback" }
 
 anyhow = "1.0.104"
-dotenvy = "0.15.7"
 keyring = "4.2.0"
+librespot-connect = { version = "=0.8.0", default-features = false }
 librespot-core = "=0.8.0"
+librespot-metadata = { version = "=0.8.0", default-features = false }
 librespot-playback = "=0.8.0"
 memory-stats = "1.2.0"
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }

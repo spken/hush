@@ -1209,12 +1209,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenvy"
-version = "0.15.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
-
-[[package]]
 name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3071,6 +3065,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "librespot-connect"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b2a21e9e19b906c6676b1a515fc5529d5414f69049f5a167dfb2ea3206e5a27"
+dependencies = [
+ "futures-util",
+ "librespot-core",
+ "librespot-playback",
+ "librespot-protocol",
+ "log",
+ "protobuf",
+ "rand 0.9.5",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "librespot-core"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4410,8 +4424,9 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "auth",
- "dotenvy",
+ "librespot-connect",
  "librespot-core",
+ "librespot-metadata",
  "librespot-playback",
  "memory-stats",
  "model",
@@ -6035,6 +6050,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
