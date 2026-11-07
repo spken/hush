@@ -19,7 +19,8 @@ Connect device and metadata source, and a metered Web API gateway.
    (table in §3). Two similar functions differing by a value become one function taking
    that value.
 4. **No unnecessary code paths.** One way to do each thing. No dead branches, no unused
-   `pub` items, no commented-out code, no `TODO` without a milestone tag (`TODO(M6)`).
+   `pub` items, no commented-out code, no `TODO` comments (open work lives in
+   [ROADMAP.md](ROADMAP.md)).
 5. **Keep it stupid simple.** Prefer a function over a trait, a struct over a builder,
    a `match` over a state-machine crate, a `const` table over a config file. Add an
    abstraction only when a second real implementation exists (e.g. `CatalogSource`).
@@ -288,7 +289,12 @@ Memory is a product requirement (≈ 75 MB steady, 100 MB ceiling).
 ### Comments and docs
 
 - `///` on every `pub` item: one line saying what it is for. No restating the signature.
-- Inline comments explain *why*, never *what*.
+- Keep comments to a minimum. The code should be self-explanatory: if a comment would say
+  *what* the code does, rename or restructure the code instead. Write a comment only for a
+  non-obvious *why*.
+- Never reference the plan or milestones in code. No milestone tags (`M3`), no ROADMAP or
+  plan section numbers, no "for a later milestone" notes. Names and comments describe what
+  the code is and does, so they still make sense after the plan changes.
 - Decisions with trade-offs go in `docs/decisions.md` (date, decision, reason), not in code.
 
 ### Commits
