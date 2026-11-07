@@ -173,8 +173,7 @@ todo = "warn"
 print_stdout = "warn"
 ```
 
-- Before every commit: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo test --workspace`.
+- Before every commit: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`.
 
 ### Layout and naming
 
@@ -260,13 +259,9 @@ Memory is a product requirement (≈ 75 MB steady, 100 MB ceiling).
 
 ### Testing
 
-- Unit tests sit beside the code in `#[cfg(test)] mod tests`. Test behaviour, not
-  implementation.
-- Integration tests for the gateway use `wiremock`; never call real Spotify in tests.
-- `store` tests use an in-memory SQLite database with the real migrations.
-- Each milestone exit test in ROADMAP.md is either an automated test or an `examples/`
-  program with documented steps.
-- No mocking frameworks. If code is hard to test, pass the dependency in as a value.
+- No tests. Do not write unit, integration or doc tests, and do not add `cargo test` to CI
+  or commit checks. Hush is a personal client, so correctness is checked by running the app
+  and the examples in ROADMAP.md's exit criteria by hand.
 
 ### Slint
 

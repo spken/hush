@@ -38,8 +38,7 @@ duplication; none changes the product.
    `librespot-*` and `slint`), `[workspace.lints]`, and the release profile
    (`lto = "fat"`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
 4. Add `rustfmt.toml`, `.gitignore` (`/target`, `.env`), and a GitHub Actions workflow on
-   `windows-latest`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
-   `cargo test --workspace`.
+   `windows-latest`: `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`.
 5. **Renderer spike** (`crates/ui/examples/renderer_spike.rs`): a Slint window with a
    `ListView` of 5,000 dummy rows, each a 96 px image and two text lines.
    - Measure RSS (Task Manager *Memory* column) and CPU during a flick-scroll, with the
@@ -242,7 +241,7 @@ without restart.
 ## Every milestone
 
 - RSS and Web API request count recorded in `docs/measurements.md`.
-- `cargo fmt`, `clippy -D warnings`, `cargo test` green.
+- `cargo fmt`, `clippy -D warnings` clean; exit criteria checked by hand.
 - Delete spike code that the milestone made obsolete.
 - Re-check librespot issue [#1771](https://github.com/librespot-org/librespot/issues/1771)
   and the Spotify Web API changelog before starting.
