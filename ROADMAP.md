@@ -179,11 +179,16 @@ Crate extended: `catalog`.
    Concurrency cap 6 (`tokio::sync::Semaphore`), dedupe via `kit::Coalescer`.
 3. Tracks/albums cached forever; artists refreshed weekly.
 4. Album, artist (with top tracks) and followed/editorial playlist pages.
-5. Spike: batched `extended-metadata` via `SpClient` raw requests. Record result in
+5. Play from Hush: `Command::Play { context, start }` (album, playlist, artist or Liked
+   Songs, optionally from one track; shuffle as a flag) → Controller → `Spirc::load`. If
+   Hush is not the active device, it activates itself first. Play and Shuffle on every page
+   and double-click on a track row use it.
+6. Spike: batched `extended-metadata` via `SpClient` raw requests. Record result in
    `docs/decisions.md`.
 
 **Exit test:** browsing 20 albums + 5 artists → 0 Web API requests; with spclient disabled,
-the same pages load via the fallback.
+the same pages load via the fallback; Play on a playlist and on an album starts it on Hush
+with no other Spotify app open, at 0 Web API requests.
 
 ---
 
