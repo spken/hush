@@ -18,8 +18,9 @@ Run with `SLINT_BACKEND=winit-software` or `SLINT_BACKEND=winit-femtovg`, and
 `SLINT_DEBUG_PERFORMANCE=refresh_lazy,console` to print frames per second.
 Each figure: 5 s warm-up, then a 10 s sample.
 
-Machine: i7-12700K, RTX 3070, Windows 11 26200, display reporting 1920×1080 at **239 Hz**
-(the plan assumes 144 Hz). Rust 1.99.1, Slint 1.18.1.
+Machine: i7-12700K, RTX 3070, Windows 11 26200, Rust 1.99.1, Slint 1.18.1. Measured on
+the primary display (1920×1080 at 239 Hz); Hush targets the secondary 144 Hz display,
+where fewer frames are drawn, so these CPU figures are an upper bound.
 
 | Renderer | Window | State | Private WS (MB) | Working set (MB) | CPU (% of 1 core) | FPS |
 | --- | --- | --- | --- | --- | --- | --- |
