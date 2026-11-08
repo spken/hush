@@ -9,10 +9,7 @@ mod windows;
 use std::{env, fs, path::PathBuf, time::Duration};
 
 use anyhow::Context;
-use slint::{
-    ComponentHandle,
-    winit_030::winit::{platform::windows::WindowAttributesExtWindows, window::Theme},
-};
+use slint::{ComponentHandle, winit_030::winit::platform::windows::WindowAttributesExtWindows};
 use tokio::sync::oneshot;
 
 fn main() -> anyhow::Result<()> {
@@ -47,11 +44,11 @@ fn main() -> anyhow::Result<()> {
         .enable_all()
         .build()?;
 
-    // A dark theme gives the native title bar its dark mode.
+    // The window draws its own title bar; the shadow keeps the system's edge and corners.
     slint::BackendSelector::new()
         .with_winit_window_attributes_hook(|attributes| {
             attributes
-                .with_theme(Some(Theme::Dark))
+                .with_undecorated_shadow(true)
                 .with_class_name(windows::WINDOW_CLASS)
         })
         .select()?;

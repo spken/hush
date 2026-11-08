@@ -6,6 +6,7 @@ import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
 import { Art } from "art.slint";
 import { Rail } from "rail.slint";
+import { TitleBar } from "title-bar.slint";
 import { Controls } from "controls.slint";
 import { NowPlayingPage } from "now-playing-page.slint";
 import { LibraryPage } from "library-page.slint";
@@ -26,6 +27,9 @@ export component MainWindow inherits Window {
     property <bool> debug-open;
 
     title: "Hush";
+    icon: @image-url("assets/hush.svg");
+    no-frame: true;
+    resize-border-width: root.maximized || root.immersive ? 0 : Theme.resize-border;
     preferred-width: Theme.window-width;
     preferred-height: Theme.window-height;
     min-width: Theme.window-min-width;
@@ -77,47 +81,56 @@ export component MainWindow inherits Window {
             reject
         }
 
-        HorizontalLayout {
-            if !root.immersive: Rail {}
+        VerticalLayout {
+            if !root.immersive: TitleBar {
+                maximized: root.maximized;
+                minimize => { root.minimized = true; }
+                toggle-maximized => { root.maximized = !root.maximized; }
+                close => { root.close(); }
+            }
 
-            VerticalLayout {
-                if Player.notice != "": Notice {
-                    message: Player.notice;
+            HorizontalLayout {
+                if !root.immersive: Rail {}
+
+                VerticalLayout {
+                    if Player.notice != "": Notice {
+                        message: Player.notice;
+                    }
+
+                    if Nav.page == Page.now-playing: NowPlayingPage {
+                        vertical-stretch: 1;
+                        full-screen: root.immersive;
+                        toggle-full-screen => { root.immersive = !root.immersive; }
+                    }
+
+                    if Nav.page == Page.search: SearchPage {
+                        vertical-stretch: 1;
+                    }
+
+                    if Nav.page == Page.settings: SettingsPage {
+                        vertical-stretch: 1;
+                    }
+
+                    if Nav.page == Page.library: LibraryPage {
+                        vertical-stretch: 1;
+                    }
+
+                    if Nav.page == Page.album: AlbumPage {
+                        vertical-stretch: 1;
+                    }
+
+                    if Nav.page == Page.artist: ArtistPage {
+                        vertical-stretch: 1;
+                    }
+
+                    if Player.has-track: Controls {}
                 }
-
-                if Nav.page == Page.now-playing: NowPlayingPage {
-                    vertical-stretch: 1;
-                    full-screen: root.immersive;
-                    toggle-full-screen => { root.immersive = !root.immersive; }
-                }
-
-                if Nav.page == Page.search: SearchPage {
-                    vertical-stretch: 1;
-                }
-
-                if Nav.page == Page.settings: SettingsPage {
-                    vertical-stretch: 1;
-                }
-
-                if Nav.page == Page.library: LibraryPage {
-                    vertical-stretch: 1;
-                }
-
-                if Nav.page == Page.album: AlbumPage {
-                    vertical-stretch: 1;
-                }
-
-                if Nav.page == Page.artist: ArtistPage {
-                    vertical-stretch: 1;
-                }
-
-                if Player.has-track: Controls {}
             }
         }
 
         if root.debug-open: DebugOverlay {
             x: parent.width - self.width - Theme.space-5;
-            y: Theme.space-5;
+            y: Theme.title-bar-height + Theme.space-5;
         }
     }
 }

@@ -1,0 +1,29 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "icon.slint";
+
+// A flat window button the height of the title bar; the close button turns red on hover.
+export component CaptionButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> close;
+    callback clicked();
+
+    width: Theme.caption-width;
+    background: touch.pressed ? (root.close ? Theme.caption-close-pressed : Theme.pressed)
+        : touch.has-hover ? (root.close ? Theme.caption-close : Theme.hover)
+        : transparent;
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+
+    Icon {
+        commands: root.icon;
+        width: Theme.icon-sm;
+        height: Theme.icon-sm;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
