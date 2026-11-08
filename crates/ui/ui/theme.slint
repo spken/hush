@@ -76,8 +76,9 @@ export global Theme {
     out property <length> resize-border: 6px;
     out property <length> rail-width: 72px;
     out property <length> controls-height: 88px;
-    out property <length> volume-width: 104px;
-    out property <length> summary-width: 256px;
+    // Short enough that volume and the queue and device buttons fit in summary-width.
+    out property <length> volume-width: 72px;
+    out property <length> summary-width: 200px;
     out property <length> player-width: 720px;
     // Room for two transport buttons either side of play/pause, which keeps it centred.
     out property <length> transport-side: 76px;

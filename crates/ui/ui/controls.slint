@@ -10,7 +10,8 @@ import { Queue } from "queue.slint";
 
 // The borderless strip along the bottom of the canvas: the current track on the left,
 // the transport over the timeline in the centre, volume and the device picker on the
-// right, beside the queue button. The two sides are as wide as each other so the centre stays centred.
+// right, beside the queue button. The two sides are as wide as each other so the centre
+// stays centred.
 export component Controls inherits HorizontalLayout {
     height: Theme.controls-height;
     padding-left: Theme.space-6;
@@ -36,12 +37,12 @@ export component Controls inherits HorizontalLayout {
     HorizontalLayout {
         width: Theme.summary-width;
         alignment: end;
-        spacing: Theme.space-5;
+        spacing: Theme.space-3;
 
         Volume {}
 
         HorizontalLayout {
-            spacing: Theme.space-3;
+            spacing: Theme.space-1;
 
             VerticalLayout {
                 alignment: center;
@@ -49,6 +50,7 @@ export component Controls inherits HorizontalLayout {
                 IconButton {
                     icon: Icons.queue;
                     label: "Playing Next";
+                    size: Theme.button-sm;
                     icon-size: Theme.icon-sm;
                     selected: Queue.open;
                     clicked => { Queue.set-open(!Queue.open); }
