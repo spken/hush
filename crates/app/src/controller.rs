@@ -4,6 +4,7 @@
 mod library;
 mod media;
 mod pages;
+mod reconnect;
 mod remote;
 mod search;
 mod settings;
@@ -19,7 +20,7 @@ use std::{
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
 use images::Images;
-use model::{Anchor, Art, Command, Event, List, Playback, Route};
+use model::{Anchor, Art, Command, Degraded, Event, List, Playback, Route};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{
@@ -124,6 +125,16 @@ struct Controller {
     /// The playback settings, as saved.
     playback: Playback,
     remote: Remote,
+    /// What runs degraded, at most one of each.
+    degraded: Vec<Degraded>,
+    /// Where librespot keeps its reusable credentials, for reconnecting.
+    cache_dir: PathBuf,
+    /// Whether the catalog may come from spclient.
+    spclient: bool,
+    /// Starts the device again after it failed or lost its session.
+    reconnecting: Option<JoinHandle<Result<(Device, Events), playback::Error>>>,
+    /// Reconnects tried since the device last ran.
+    attempts: u32,
 }
 
 /// Runs the Controller until every `Handle` is dropped; `own` lets the media overlay send
@@ -160,6 +171,11 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         overlay: None,
         playback: Playback::default(),
         remote: Remote::new(),
+        degraded: Vec::new(),
+        cache_dir: cache_dir.clone(),
+        spclient,
+        reconnecting: None,
+        attempts: 0,
     };
     match store.playback().await {
         Ok(playback) => controller.playback = playback,
@@ -187,18 +203,24 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         tokio::select! {
             (library, device) = &mut start, if !started => {
                 started = true;
-                player = controller.started(library, device, spclient).await;
+                player = controller.started(library, device).await;
             }
             command = commands.recv() => {
                 let Some(command) = command else { break };
                 controller.command(command).await;
             }
             event = next(&mut player) => {
-                let Some(event) = event else {
-                    tracing::warn!("the player stopped");
-                    break;
-                };
-                controller.event(event).await;
+                if let Some(event) = event {
+                    controller.event(event).await;
+                } else {
+                    player = None;
+                    controller.disconnected();
+                }
+            }
+            joined = joined(&mut controller.reconnecting) => {
+                if let Some(events) = controller.reconnect_done(joined).await {
+                    player = Some(events);
+                }
             }
             Some(event) = service_events.recv() => controller.event(event).await,
             () = time::sleep_until(controller.remote.poll_at.unwrap_or_else(time::Instant::now)),
@@ -213,6 +235,14 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         && let Err(error) = device.shutdown().await
     {
         tracing::warn!(%error, "the Spotify Connect device did not shut down cleanly");
+    }
+}
+
+/// The outcome of the reconnect running, if one is.
+async fn joined<T>(task: &mut Option<JoinHandle<T>>) -> Result<T, tokio::task::JoinError> {
+    match task {
+        Some(task) => task.await,
+        None => future::pending().await,
     }
 }
 
@@ -280,43 +310,32 @@ impl Controller {
         &mut self,
         library: Option<Library>,
         device: Result<(Device, Events), playback::Error>,
-        spclient: bool,
     ) -> Option<Events> {
-        let gateway = library.as_ref().map(|library| library.gateway.clone());
         if let Some(library) = library {
             self.view.web_api(library.gateway.metrics());
             self.library = Some(library);
             self.sync(false);
         }
-        let (session, events) = match device {
+        let events = match device {
             Ok((device, events)) => {
                 tracing::info!("\"Hush\" is in the Spotify Connect device list");
                 self.view.connected();
-                let session = spclient.then(|| device.session());
                 // Settings changed while the device started.
                 device.apply(&self.playback);
                 self.device = Some(device);
-                (session, Some(events))
+                Some(events)
             }
             Err(error) => {
                 tracing::error!(%error, "could not start the Spotify Connect device");
                 self.view.failed(&error);
-                (None, None)
+                self.reconnecting = Some(self.reconnect());
+                None
             }
         };
-        if !spclient {
+        if !self.spclient {
             tracing::info!("HUSH_CATALOG is web-api; spclient is off for the catalog");
         }
-        self.catalog = if session.is_none() && gateway.is_none() {
-            tracing::error!("no catalog source; album and artist pages stay empty");
-            Catalog::Off
-        } else {
-            Catalog::Ready(CatalogService::spawn(catalog::Deps {
-                store: self.store.clone(),
-                session,
-                gateway,
-            }))
-        };
+        self.start_catalog();
         report(self.show_open().await);
         self.fetch_open();
         self.show_route().await;
@@ -467,7 +486,8 @@ impl Controller {
                 }
             }
             Event::Polled(player) => self.polled(player),
-            Event::Degraded(reason) => tracing::warn!(?reason, "running degraded"),
+            Event::Degraded(reason) => self.degrade(reason, true),
+            Event::Recovered(reason) => self.degrade(reason, false),
             Event::Playing { .. } | Event::Paused { .. } | Event::Seeked { .. } => {
                 if let Some(overlay) = &mut self.overlay {
                     overlay.progress(self.anchor, Instant::now());

@@ -1,0 +1,33 @@
+import { Theme } from "../theme.slint";
+
+// A quiet line across the top of the content that says what runs degraded.
+export component Notice inherits HorizontalLayout {
+    in property <string> message;
+
+    padding-top: Theme.space-3;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-2;
+    accessible-role: text;
+    accessible-label: root.message;
+
+    VerticalLayout {
+        alignment: center;
+
+        Rectangle {
+            width: Theme.status-dot;
+            height: Theme.status-dot;
+            border-radius: self.width / 2;
+            background: Theme.warning;
+        }
+    }
+
+    Text {
+        horizontal-stretch: 1;
+        text: root.message;
+        vertical-alignment: center;
+        overflow: elide;
+        font-size: Theme.text-small;
+        color: Theme.text-secondary;
+    }
+}

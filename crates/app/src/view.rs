@@ -10,7 +10,7 @@ mod settings;
 
 use std::{cell::Cell, fmt, time::Instant};
 
-use model::{Anchor, Command, Entity, List, Track};
+use model::{Anchor, Command, Degraded, Entity, List, Track};
 use slint::{
     ComponentHandle, Model, ModelRc, SharedString, VecModel,
     winit_030::{EventResult, WinitWindowAccessor, winit::event::WindowEvent},
@@ -47,6 +47,31 @@ impl View {
         self.update(|window| {
             window.global::<Player>().set_connection(Connection::Ready);
         });
+    }
+
+    /// The device lost its session and is reconnecting.
+    pub(crate) fn connecting(&self) {
+        self.update(|window| {
+            let player = window.global::<Player>();
+            player.set_connection(Connection::Connecting);
+            player.set_has_track(false);
+        });
+    }
+
+    /// Says what runs degraded, if anything.
+    pub(crate) fn degraded(&self, reasons: &[Degraded]) {
+        let notice: Vec<&str> = (reasons.iter())
+            .map(|reason| match reason {
+                Degraded::QuotaExceeded => {
+                    "Spotify’s request limit was reached; showing saved data for now."
+                }
+                Degraded::Disconnected => {
+                    "Can’t reach Spotify. Reconnecting; what’s saved stays available."
+                }
+            })
+            .collect();
+        let notice = SharedString::from(notice.join(" "));
+        self.update(move |window| window.global::<Player>().set_notice(notice));
     }
 
     /// The device could not start; `error` says why.

@@ -35,7 +35,8 @@ pub struct Deps {
     pub store: Store,
     /// The API root, `BASE_URL` outside of examples.
     pub base_url: Box<str>,
-    /// Where `Event::Degraded` goes when the quota runs out.
+    /// Where `Event::Degraded` and `Event::Recovered` go when the quota runs out and
+    /// returns.
     pub events: mpsc::Sender<Event>,
 }
 
@@ -301,6 +302,10 @@ impl Gateway {
             } else {
                 self.breaker_until = None;
                 tracing::info!("Web API quota breaker closed");
+                let event = Event::Recovered(Degraded::QuotaExceeded);
+                if let Err(error) = self.events.try_send(event) {
+                    tracing::warn!(%error, "quota event not delivered");
+                }
             }
         }
         if let Some(until) = self.paused_until {

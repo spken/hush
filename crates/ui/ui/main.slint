@@ -16,6 +16,7 @@ import { SettingsPage } from "settings-page.slint";
 import { SettingsView } from "settings.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 import { Backdrop } from "components/backdrop.slint";
+import { Notice } from "components/notice.slint";
 
 export { DeviceRow } from "player.slint";
 export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView }
@@ -80,6 +81,10 @@ export component MainWindow inherits Window {
             if !root.immersive: Rail {}
 
             VerticalLayout {
+                if Player.notice != "": Notice {
+                    message: Player.notice;
+                }
+
                 if Nav.page == Page.now-playing: NowPlayingPage {
                     vertical-stretch: 1;
                     full-screen: root.immersive;

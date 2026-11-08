@@ -33,6 +33,7 @@ impl Anchor {
             | Event::Active(_)
             | Event::Polled(_)
             | Event::Degraded(_)
+            | Event::Recovered(_)
             | Event::Syncing { .. }
             | Event::Synced
             | Event::ListChanged(_)

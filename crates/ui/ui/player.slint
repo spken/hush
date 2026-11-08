@@ -13,6 +13,8 @@ export struct DeviceRow {
 
 export global Player {
     in property <Connection> connection;
+    // What runs degraded, said in a sentence, or "".
+    in property <string> notice;
     in property <string> error;
     in property <bool> has-track;
     in property <string> title;

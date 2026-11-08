@@ -15,6 +15,9 @@ pub struct Track {
 pub enum Degraded {
     /// The Web API quota ran out; only cached data and urgent requests are served.
     QuotaExceeded,
+    /// The Spotify Connect device lost its session and is reconnecting; pages come from
+    /// the database and the Web API.
+    Disconnected,
 }
 
 /// How a catalog lookup ended.
@@ -50,6 +53,8 @@ pub enum Event {
     Polled(Option<web::Player>),
     /// A service fell back to a degraded mode.
     Degraded(Degraded),
+    /// A service left a degraded mode.
+    Recovered(Degraded),
     /// Library sync is running: `done` of `total` entries of the list being read, both 0
     /// while unknown.
     Syncing { done: u32, total: u32 },
