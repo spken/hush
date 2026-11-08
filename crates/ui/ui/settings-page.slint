@@ -1,6 +1,8 @@
 import { ComboBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { SettingsView } from "settings.slint";
+import { SettingsView, UpdateState } from "settings.slint";
+import { Icons } from "components/icon.slint";
+import { PillButton } from "components/pill-button.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { SettingRow } from "components/setting-row.slint";
 import { TextField } from "components/text-field.slint";
@@ -188,6 +190,41 @@ export component SettingsPage inherits VerticalLayout {
                     db: SettingsView.gains[index];
                     enabled: SettingsView.eq;
                     changed(db) => { SettingsView.set-gain(index, db); }
+                }
+            }
+
+            Rectangle {
+                height: Theme.space-5;
+            }
+
+            SectionHeader {
+                title: "About";
+            }
+
+            SettingRow {
+                title: "Hush " + SettingsView.version;
+                detail: SettingsView.update == UpdateState.checking ? "Looking for a newer release…"
+                    : SettingsView.update == UpdateState.latest ? "You have the newest release."
+                    : SettingsView.update == UpdateState.downloading ? "Downloading Hush " + SettingsView.available + "…"
+                    : SettingsView.update == UpdateState.ready ? "Hush " + SettingsView.available + " is installed. Restart Hush to start using it."
+                    : SettingsView.update == UpdateState.failed ? "The update didn’t finish. Check your connection and try again."
+                    : "Updates come from Hush’s releases on GitHub.";
+
+                PillButton {
+                    property <bool> busy: SettingsView.update == UpdateState.checking || SettingsView.update == UpdateState.downloading;
+                    property <bool> ready: SettingsView.update == UpdateState.ready;
+
+                    icon: Icons.sync;
+                    text: self.ready ? "Restart" : self.busy ? "Updating…" : "Check for Updates";
+                    primary: self.ready;
+                    enabled: !self.busy;
+                    clicked => {
+                        if self.ready {
+                            SettingsView.restart();
+                        } else {
+                            SettingsView.install-update();
+                        }
+                    }
                 }
             }
         }

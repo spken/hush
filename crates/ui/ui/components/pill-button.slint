@@ -2,11 +2,12 @@ import { Theme } from "../theme.slint";
 import { Icon } from "icon.slint";
 
 // A capsule button with a glyph and a label; `primary` fills it with the accent colour,
-// otherwise it is quiet until hovered.
+// otherwise it is quiet until hovered. Disabled, it dims and ignores clicks.
 export component PillButton inherits Rectangle {
     in property <string> icon;
     in property <string> text;
     in property <bool> primary;
+    in property <bool> enabled: true;
     callback clicked();
 
     height: Theme.pill-height;
@@ -19,7 +20,12 @@ export component PillButton inherits Rectangle {
     animate background { duration: Theme.duration-fast; easing: ease-out; }
     accessible-role: button;
     accessible-label: root.text;
-    accessible-action-default => { root.clicked(); }
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if root.enabled {
+            root.clicked();
+        }
+    }
 
     HorizontalLayout {
         padding-left: Theme.space-5;
@@ -33,7 +39,7 @@ export component PillButton inherits Rectangle {
                 commands: root.icon;
                 width: Theme.icon-sm;
                 height: Theme.icon-sm;
-                fill: root.primary ? Theme.on-accent : Theme.text;
+                fill: !root.enabled ? Theme.text-tertiary : root.primary ? Theme.on-accent : Theme.text;
             }
         }
 
@@ -42,12 +48,13 @@ export component PillButton inherits Rectangle {
             vertical-alignment: center;
             font-size: Theme.text-body;
             font-weight: Theme.weight-semibold;
-            color: root.primary ? Theme.on-accent : Theme.text;
+            color: !root.enabled ? Theme.text-tertiary : root.primary ? Theme.on-accent : Theme.text;
         }
     }
 
     touch := TouchArea {
-        mouse-cursor: pointer;
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 }

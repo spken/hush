@@ -24,7 +24,10 @@ use model::{Anchor, Art, Command, Degraded, Event, List, PictureKey, Playback, R
 use playback::{Device, Events};
 use store::Store;
 use tokio::{
-    sync::{mpsc, oneshot},
+    sync::{
+        mpsc::{self, Receiver, WeakSender},
+        oneshot,
+    },
     task::JoinHandle,
     time,
 };
@@ -67,8 +70,9 @@ pub(crate) struct Handle {
 }
 
 impl Handle {
-    /// Starts the Controller on the current tokio runtime.
-    pub(crate) fn spawn(deps: Deps) -> (Self, JoinHandle<()>) {
+    /// Starts the Controller on the current tokio runtime; its task ends with whether Hush
+    /// should start again.
+    pub(crate) fn spawn(deps: Deps) -> (Self, JoinHandle<bool>) {
         let (tx, rx) = mpsc::channel(64);
         let weak = tx.downgrade();
         (Self { tx }, tokio::spawn(run(deps, rx, weak)))
@@ -133,11 +137,14 @@ struct Controller {
     reconnecting: Option<JoinHandle<Result<(Device, Events), playback::Error>>>,
     /// Reconnects tried since the device last ran.
     attempts: u32,
+    http: reqwest::Client,
+    /// Whether Hush starts again once it stops, to run an installed update.
+    restart: bool,
 }
 
-/// Runs the Controller until every `Handle` is dropped; `own` lets the media overlay send
-/// commands without keeping it alive.
-async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakSender<Command>) {
+/// Runs the Controller until every `Handle` is dropped, then says whether Hush should start
+/// again; `own` lets the media overlay send commands without keeping it alive.
+async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Command>) -> bool {
     let Deps {
         cache_dir,
         spclient,
@@ -173,6 +180,8 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         spclient,
         reconnecting: None,
         attempts: 0,
+        http: http.clone(),
+        restart: false,
     };
     match store.playback().await {
         Ok(playback) => controller.playback = playback,
@@ -234,6 +243,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
     {
         tracing::warn!(%error, "the Spotify Connect device did not shut down cleanly");
     }
+    controller.restart
 }
 
 /// The outcome of the reconnect running, if one is.
@@ -446,6 +456,8 @@ impl Controller {
                     self.load_picture(key);
                 }
             }
+            Command::Update => self.update(),
+            Command::Restart => self.restart(),
         }
     }
 

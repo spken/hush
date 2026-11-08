@@ -1,6 +1,13 @@
 // Settings state the Controller pushes to the UI, and the changes the UI sends back.
 
+// Where updating Hush stands.
+export enum UpdateState { idle, checking, latest, downloading, ready, failed }
+
 export global SettingsView {
+    // Hush's version, where updating it stands, and the version being installed.
+    in property <string> version;
+    in property <UpdateState> update;
+    in property <string> available;
     // The Client ID of the user's Spotify app, for the Web API.
     in-out property <string> client-id;
     // The equalizer: on or off, a preamp and one gain per band, all in dB.
@@ -25,4 +32,8 @@ export global SettingsView {
     // A band's gain changed: its index and the gain in dB.
     callback set-gain(int, float);
     callback choose-preset(int);
+    // Install the newest release, if it is newer.
+    callback install-update();
+    // Quit and start again, to run the installed release.
+    callback restart();
 }

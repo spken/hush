@@ -2,11 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod controller;
+mod update;
 mod view;
 #[allow(unsafe_code)]
 mod windows;
 
-use std::{env, fs, path::PathBuf, time::Duration};
+use std::{env, fs, path::PathBuf, process, time::Duration};
 
 use anyhow::Context;
 use slint::{ComponentHandle, winit_030::winit::platform::windows::WindowAttributesExtWindows};
@@ -14,10 +15,12 @@ use tokio::sync::oneshot;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
-    if !windows::claim_single_instance().context("single-instance mutex")? {
+    let Some(instance) = windows::claim_single_instance().context("single-instance mutex")? else {
         tracing::info!("Hush is already running");
         return Ok(());
-    }
+    };
+    // Read before an update renames the running exe.
+    let exe = env::current_exe().context("exe path")?;
 
     if let Err(error) = dotenvy::dotenv()
         && !error.not_found()
@@ -65,12 +68,20 @@ fn main() -> anyhow::Result<()> {
     };
     view::bind(&window, &controller);
     drop(controller);
+    // Late, so a Hush restarting after an update has exited and released its old exe.
+    update::clean(&exe);
 
     window.run()?;
     // The window's callbacks hold the last command senders; dropping it stops the
     // Controller, which removes the device from Spotify Connect.
     drop(window);
-    runtime.block_on(task).context("controller task")?;
+    let restart = runtime.block_on(task).context("controller task")?;
+    if restart {
+        drop(instance);
+        process::Command::new(exe)
+            .spawn()
+            .context("restarting Hush")?;
+    }
     Ok(())
 }
 

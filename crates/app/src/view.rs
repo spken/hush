@@ -21,7 +21,7 @@ use webapi::Metrics;
 
 use crate::controller;
 
-pub(crate) use self::library::Open;
+pub(crate) use self::{library::Open, settings::Update};
 
 /// Whether a list whose entries are not all stored is being fetched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +139,15 @@ impl View {
                     sample(&window, Some(&metrics.borrow().clone()));
                 }
             });
+        });
+    }
+
+    /// Closes the window, which stops Hush.
+    pub(crate) fn quit(&self) {
+        self.update(|_| {
+            if let Err(error) = slint::quit_event_loop() {
+                tracing::warn!(%error, "window not closed");
+            }
         });
     }
 

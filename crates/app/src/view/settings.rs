@@ -3,10 +3,23 @@
 
 use model::{Command, EQ_BANDS, OutputDevice, Playback};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
-use ui::{MainWindow, SettingsView};
+use ui::{MainWindow, SettingsView, UpdateState};
 
 use super::{View, int};
 use crate::controller;
+
+/// Where updating Hush stands.
+#[derive(Debug)]
+pub(crate) enum Update {
+    Checking,
+    /// This Hush is the newest release.
+    Latest,
+    /// Downloading this version.
+    Downloading(Box<str>),
+    /// This version is installed and runs once Hush restarts.
+    Ready(Box<str>),
+    Failed,
+}
 
 /// The equalizer presets: a name and a gain per band, in dB.
 const PRESETS: [(&str, [f32; EQ_BANDS]); 7] = [
@@ -57,6 +70,27 @@ impl View {
     pub(crate) fn client_id(&self, client_id: &str) {
         let client_id = SharedString::from(client_id);
         self.update(move |window| window.global::<SettingsView>().set_client_id(client_id));
+    }
+
+    /// Shows where updating Hush stands.
+    pub(crate) fn update_state(&self, update: Update) {
+        self.update(move |window| {
+            let view = window.global::<SettingsView>();
+            let state = match update {
+                Update::Checking => UpdateState::Checking,
+                Update::Latest => UpdateState::Latest,
+                Update::Downloading(version) => {
+                    view.set_available(version.as_ref().into());
+                    UpdateState::Downloading
+                }
+                Update::Ready(version) => {
+                    view.set_available(version.as_ref().into());
+                    UpdateState::Ready
+                }
+                Update::Failed => UpdateState::Failed,
+            };
+            view.set_update(state);
+        });
     }
 
     /// Offers `devices` as outputs, with `chosen` selected, or the system default for
@@ -129,6 +163,11 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
     view.on_client_id_edited(move |text| {
         client_id.send(Command::SetClientId(text.as_str().into()));
     });
+    view.set_version(env!("CARGO_PKG_VERSION").into());
+    let update = controller.clone();
+    view.on_install_update(move || update.send(Command::Update));
+    let restart = controller.clone();
+    view.on_restart(move || restart.send(Command::Restart));
 
     let weak = window.as_weak();
     let controller = controller.clone();

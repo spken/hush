@@ -14,14 +14,14 @@ import { AlbumPage } from "album-page.slint";
 import { ArtistPage } from "artist-page.slint";
 import { SearchPage } from "search-page.slint";
 import { SettingsPage } from "settings-page.slint";
-import { SettingsView } from "settings.slint";
+import { SettingsView, UpdateState } from "settings.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 import { Backdrop } from "components/backdrop.slint";
 import { Notice } from "components/notice.slint";
 
 export { DeviceRow } from "player.slint";
 export { Theme } from "theme.slint";
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView, UpdateState }
 
 export component MainWindow inherits Window {
     property <bool> immersive;

@@ -56,4 +56,8 @@ pub enum Command {
     Transfer(Box<str>),
     /// The UI needs these pictures.
     LoadPictures(Vec<PictureKey>),
+    /// Install the newest release of Hush, if it is newer than this one.
+    Update,
+    /// Quit and start Hush again, to run an installed update.
+    Restart,
 }

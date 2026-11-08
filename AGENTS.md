@@ -300,3 +300,12 @@ Memory is a product requirement (≈ 75 MB steady, 100 MB ceiling).
   description.
 - No `Co-Authored-By` or other attribution trailers.
 - A commit leaves the workspace building, formatted, lint-clean, and tested.
+
+### Releases
+
+- Every release bumps `version` in `crates/app/Cargo.toml` to match its tag (`v0.0.2` →
+  `0.0.2`), in a commit before the tag. The in-app updater compares the latest release's
+  tag with this version; without the bump, the new build sees its own release as newer
+  and keeps offering it.
+- Each release attaches the built `hush.exe` under exactly that name; the updater
+  downloads only that asset.

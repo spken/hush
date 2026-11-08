@@ -9,7 +9,7 @@ use slint::winit_030::{
 use souvlaki::{MediaControls, PlatformConfig};
 
 use windows_sys::Win32::{
-    Foundation::{ERROR_ALREADY_EXISTS, GetLastError},
+    Foundation::{CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE},
     System::Threading::CreateMutexW,
     UI::WindowsAndMessaging::{FindWindowW, IsIconic, SW_RESTORE, SetForegroundWindow, ShowWindow},
 };
@@ -19,22 +19,34 @@ pub(crate) const WINDOW_CLASS: &str = "Hush";
 
 const MUTEX_NAME: &str = "Local\\Hush.SingleInstance";
 
-/// Claims the per-user single-instance mutex. Returns `false`, after bringing the running
+/// The per-user single-instance mutex, held until dropped.
+#[derive(Debug)]
+pub(crate) struct Instance(HANDLE);
+
+impl Drop for Instance {
+    fn drop(&mut self) {
+        // SAFETY: the handle came from `CreateMutexW` and is closed only here.
+        unsafe { CloseHandle(self.0) };
+    }
+}
+
+/// Claims the per-user single-instance mutex. Returns `None`, after bringing the running
 /// instance's window to the front, when another Hush already holds it.
-pub(crate) fn claim_single_instance() -> io::Result<bool> {
+pub(crate) fn claim_single_instance() -> io::Result<Option<Instance>> {
     let name = wide(MUTEX_NAME);
     // SAFETY: `name` is NUL-terminated and outlives the call; null security attributes
-    // are allowed. The handle is never closed: the mutex must live as long as the process.
+    // are allowed.
     let handle = unsafe { CreateMutexW(ptr::null(), 0, name.as_ptr()) };
     if handle.is_null() {
         return Err(io::Error::last_os_error());
     }
+    let instance = Instance(handle);
     // SAFETY: reads this thread's last error, which `CreateMutexW` just set.
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
         focus_running();
-        return Ok(false);
+        return Ok(None);
     }
-    Ok(true)
+    Ok(Some(instance))
 }
 
 fn focus_running() {
