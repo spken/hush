@@ -66,6 +66,8 @@ pub enum Control {
     Seek(u32),
     /// Set the volume, in percent.
     Volume(u8),
+    /// Turn shuffle on, or with `false` off.
+    Shuffle(bool),
 }
 
 /// The body of a playback transfer.
@@ -129,6 +131,9 @@ impl ApiGateway {
                 Method::Put,
                 format!("/me/player/volume?volume_percent={percent}"),
             ),
+            Control::Shuffle(shuffle) => {
+                (Method::Put, format!("/me/player/shuffle?state={shuffle}"))
+            }
         };
         self.send(method, &path, None, Lane::P0, cancel).await
     }

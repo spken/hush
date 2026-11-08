@@ -388,6 +388,17 @@ impl Controller {
                     self.view.volume(volume);
                 }
             }
+            Command::SetShuffle(shuffle) => {
+                let sent = if self.remote_active() {
+                    self.control_remote(Control::Shuffle(shuffle));
+                    true
+                } else {
+                    self.playback(|device| device.set_shuffle(shuffle))
+                };
+                if sent {
+                    self.view.shuffle(shuffle);
+                }
+            }
             Command::WindowFocused => self.poll_in(Duration::ZERO),
             Command::WindowVisible(visible) => {
                 self.remote.visible = visible;
@@ -476,6 +487,7 @@ impl Controller {
                 self.show_recent();
             }
             Event::Volume(volume) => self.view.volume(volume),
+            Event::Shuffle(shuffle) => self.view.shuffle(shuffle),
             Event::Active(active) => {
                 self.active = active;
                 if active {

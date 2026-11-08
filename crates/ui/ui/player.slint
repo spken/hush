@@ -33,6 +33,8 @@ export global Player {
     callback previous();
     callback seek(int);
     callback set-volume(int);
+    in property <bool> shuffle;
+    callback set-shuffle(bool);
     // The name of the other device that plays, or "" while Hush does.
     in property <string> remote-device;
     in property <[DeviceRow]> devices;

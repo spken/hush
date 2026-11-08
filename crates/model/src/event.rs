@@ -46,6 +46,8 @@ pub enum Event {
     Stopped,
     /// The device volume changed, from 0 to `u16::MAX`.
     Volume(u16),
+    /// Shuffle was turned on, or with `false` off.
+    Shuffle(bool),
     /// Hush became, or stopped being, the active Spotify Connect device.
     Active(bool),
     /// The Web API said what plays on the active device; `None` when nothing does or it

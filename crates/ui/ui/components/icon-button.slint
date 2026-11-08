@@ -9,6 +9,7 @@ export component IconButton inherits Rectangle {
     in property <length> icon-size: Theme.icon-md;
     in property <bool> enabled: true;
     in property <bool> selected;
+    in property <color> tint: Theme.text;
     callback clicked();
 
     width: root.size;
@@ -25,7 +26,7 @@ export component IconButton inherits Rectangle {
         commands: root.icon;
         width: root.icon-size;
         height: root.icon-size;
-        fill: root.enabled ? Theme.text : Theme.text-tertiary;
+        fill: root.enabled ? root.tint : Theme.text-tertiary;
     }
 
     touch := TouchArea {

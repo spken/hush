@@ -3,7 +3,7 @@ import { Icons } from "icon.slint";
 import { IconButton } from "icon-button.slint";
 import { Player } from "../player.slint";
 
-// Previous, play/pause and next for the current track.
+// Shuffle, previous, play/pause and next for the current track.
 export component Transport inherits HorizontalLayout {
     in property <length> button-size: Theme.button-md;
     in property <length> icon-size: Theme.icon-md;
@@ -12,6 +12,20 @@ export component Transport inherits HorizontalLayout {
 
     alignment: center;
     spacing: Theme.space-2;
+
+    VerticalLayout {
+        alignment: center;
+        IconButton {
+            icon: Icons.shuffle;
+            label: Player.shuffle ? "Turn Shuffle Off" : "Shuffle";
+            size: root.button-size;
+            icon-size: root.icon-size;
+            enabled: Player.has-track;
+            selected: Player.shuffle;
+            tint: Player.shuffle ? Theme.text : Theme.text-secondary;
+            clicked => { Player.set-shuffle(!Player.shuffle); }
+        }
+    }
 
     VerticalLayout {
         alignment: center;

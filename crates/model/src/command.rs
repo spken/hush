@@ -15,6 +15,8 @@ pub enum Command {
     Seek { position_ms: u32 },
     /// Set the device volume, from 0 to `u16::MAX`.
     SetVolume(u16),
+    /// Turn shuffle on, or with `false` off.
+    SetShuffle(bool),
     /// Play a list on Hush: from the track with key `start`, or from its top; shuffled or
     /// in order.
     Play {

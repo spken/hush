@@ -1,0 +1,51 @@
+import { Theme } from "../theme.slint";
+import { Player } from "../player.slint";
+import { Nav, Page } from "../catalog.slint";
+import { Artwork } from "artwork.slint";
+
+// The current track in the playback bar: cover, title and artists. It opens Now Playing.
+export component TrackSummary inherits Rectangle {
+    width: Theme.summary-width;
+    accessible-role: button;
+    accessible-label: "Now playing: " + Player.title + ", " + Player.artists;
+    accessible-action-default => { Nav.go(Page.now-playing); }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { Nav.go(Page.now-playing); }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        VerticalLayout {
+            alignment: center;
+
+            Artwork {
+                size: Theme.art-row;
+                art: Player.art;
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Theme.space-1;
+
+            Text {
+                text: Player.title;
+                overflow: elide;
+                font-size: Theme.text-body;
+                font-weight: Theme.weight-semibold;
+                color: touch.has-hover ? Theme.accent : Theme.text;
+            }
+
+            Text {
+                text: Player.remote-device == "" ? Player.artists : Player.artists + " · " + Player.remote-device;
+                overflow: elide;
+                font-size: Theme.text-small;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+}

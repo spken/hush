@@ -151,6 +151,7 @@ pub struct Player {
     pub is_playing: Option<bool>,
     /// The track; an episode or an ad reads as a track without an ID.
     pub item: Option<Track>,
+    pub shuffle_state: Option<bool>,
 }
 
 /// `/me/player/recently-played`: the last tracks played, newest first.

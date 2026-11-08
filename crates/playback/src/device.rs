@@ -183,6 +183,11 @@ impl Device {
         Ok(self.spirc.set_volume(volume)?)
     }
 
+    /// Turns shuffle on, or with `false` off.
+    pub fn set_shuffle(&self, shuffle: bool) -> Result<(), Error> {
+        Ok(self.spirc.shuffle(shuffle)?)
+    }
+
     /// Pauses playback, removes the device from Spotify Connect and waits for it to stop.
     pub async fn shutdown(self) -> Result<(), Error> {
         self.spirc.shutdown()?;

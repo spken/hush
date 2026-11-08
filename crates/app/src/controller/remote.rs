@@ -124,6 +124,9 @@ impl Controller {
             Event::Paused { position_ms }
         };
         self.anchor.apply(&event, std::time::Instant::now());
+        if let Some(shuffle) = player.shuffle_state {
+            self.view.shuffle(shuffle);
+        }
         if let Some(volume) = player.device.and_then(|device| device.volume_percent) {
             self.view.volume(percent_to_volume(volume));
         }

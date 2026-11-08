@@ -123,6 +123,11 @@ impl View {
         });
     }
 
+    /// Shows whether shuffle is on.
+    pub(crate) fn shuffle(&self, shuffle: bool) {
+        self.update(move |window| window.global::<Player>().set_shuffle(shuffle));
+    }
+
     /// Shows the Web API gateway's counts in the debug overlay from now on.
     pub(crate) fn web_api(&self, metrics: watch::Receiver<Metrics>) {
         self.update(move |window| {
@@ -169,6 +174,8 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
     let set_volume = controller.clone();
     let list = controller.clone();
     player.on_list_devices(move || list.send(Command::ListDevices));
+    let shuffle = controller.clone();
+    player.on_set_shuffle(move |on| shuffle.send(Command::SetShuffle(on)));
     let transfer = controller.clone();
     player.on_transfer(move |id| transfer.send(Command::Transfer(id.as_str().into())));
     window_state(window, controller);

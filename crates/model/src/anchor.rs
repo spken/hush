@@ -30,6 +30,7 @@ impl Anchor {
             Event::Stopped => (0, false),
             Event::TrackChanged(_)
             | Event::Volume(_)
+            | Event::Shuffle(_)
             | Event::Active(_)
             | Event::Polled(_)
             | Event::Degraded(_)
