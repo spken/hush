@@ -5,11 +5,12 @@ use std::{
 
 use arc_swap::{ArcSwap, Guard};
 use librespot_playback::{SAMPLE_RATE, player::db_to_ratio};
+use model::EQ_BANDS;
 
 /// Centre frequencies of the equalizer bands: a low shelf, eight peaking filters one
 /// octave apart, and a high shelf.
-pub const EQ_BANDS_HZ: [u16; 10] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
-const BANDS: usize = EQ_BANDS_HZ.len();
+pub const EQ_BANDS_HZ: [u16; EQ_BANDS] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const BANDS: usize = EQ_BANDS;
 /// Coefficients per biquad: b0, b1, b2, a1, a2, normalised by a0.
 const TAPS: usize = 5;
 const PEAK_Q: f64 = SQRT_2;

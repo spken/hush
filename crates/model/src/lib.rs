@@ -8,6 +8,7 @@ mod error;
 mod event;
 mod id;
 mod library;
+mod settings;
 pub mod web;
 
 pub use anchor::Anchor;
@@ -18,3 +19,4 @@ pub use error::Error;
 pub use event::{Degraded, Event, Fetch, Track};
 pub use id::{SpotifyId, TrackId};
 pub use library::{AlbumRow, ArtistRow, Context, Entity, Hits, List, PlaylistRow, Route, TrackRow};
+pub use settings::{EQ_BANDS, OutputDevice, Playback};

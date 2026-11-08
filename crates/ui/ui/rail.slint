@@ -54,6 +54,18 @@ export component Rail inherits VerticalLayout {
 
     HorizontalLayout {
         alignment: center;
+        IconButton {
+            icon: Icons.settings;
+            label: "Settings";
+            size: Theme.button-md;
+            icon-size: Theme.icon-sm;
+            selected: Nav.page == Page.settings;
+            clicked => { Nav.go(Page.settings); }
+        }
+    }
+
+    HorizontalLayout {
+        alignment: center;
         accessible-role: text;
         accessible-label: Player.connection == Connection.ready ? "Connected to Spotify"
             : Player.connection == Connection.connecting ? "Connecting to Spotify"

@@ -15,7 +15,9 @@ impl Controller {
     /// top-level pages start the history afresh.
     pub(super) async fn navigate(&mut self, route: Route) {
         match route {
-            Route::NowPlaying | Route::Library | Route::Search => self.history.clear(),
+            Route::NowPlaying | Route::Library | Route::Search | Route::Settings => {
+                self.history.clear();
+            }
             Route::Album(_) | Route::Artist(_) if route == self.route => return,
             Route::Album(_) | Route::Artist(_) => {
                 if self.history.len() == HISTORY {
@@ -42,6 +44,10 @@ impl Controller {
         let list = match self.route {
             Route::Album(key) => List::Album(key),
             Route::Artist(key) => List::ArtistTop(key),
+            Route::Settings => {
+                self.list_outputs();
+                return;
+            }
             Route::NowPlaying | Route::Library | Route::Search => return,
         };
         self.fetch(list);
@@ -72,7 +78,7 @@ impl Controller {
                 let loading = self.loading(List::ArtistTop(key));
                 self.view.artist(artist, lists, loading);
             }
-            Route::NowPlaying | Route::Library | Route::Search => {}
+            Route::NowPlaying | Route::Library | Route::Search | Route::Settings => {}
         }
         Ok(())
     }

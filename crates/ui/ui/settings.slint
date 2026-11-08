@@ -1,0 +1,25 @@
+// Settings state the Controller pushes to the UI, and the changes the UI sends back.
+
+export global SettingsView {
+    // The equalizer: on or off, a preamp and one gain per band, all in dB.
+    in-out property <bool> eq;
+    in-out property <float> preamp;
+    in property <[float]> gains;
+    // The band labels, by centre frequency.
+    in property <[string]> bands;
+    // The preset names, then "Custom"; `preset` is the one the gains match.
+    in property <[string]> presets;
+    in property <int> preset;
+    in-out property <bool> normalisation;
+    in-out property <bool> gapless;
+    // Output device names, the system default first, and the IDs of the rest.
+    in property <[string]> outputs: ["System Default"];
+    in property <[string]> output-ids;
+    in-out property <int> output;
+
+    // Something above changed through the page.
+    callback changed();
+    // A band's gain changed: its index and the gain in dB.
+    callback set-gain(int, float);
+    callback choose-preset(int);
+}

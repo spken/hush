@@ -10,7 +10,7 @@ use std::{env, fs, path::PathBuf, sync::Arc, time::Duration};
 use anyhow::{Context as _, ensure};
 use auth::TokenProvider;
 use catalog::{CatalogService, Deps};
-use model::{Art, Context, Entity, Event, List, SpotifyId, catalog::Credit};
+use model::{Art, Context, Entity, Event, List, Playback, SpotifyId, catalog::Credit};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{sync::mpsc, time};
@@ -42,7 +42,8 @@ async fn main() -> anyhow::Result<()> {
     let tokens = Arc::new(TokenProvider::new(&client_id, http.clone()).await?);
     let cache_dir =
         PathBuf::from(env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?).join("Hush");
-    let (device, mut events) = Device::start(cache_dir, auth::session_token(&http)).await?;
+    let (device, mut events) =
+        Device::start(cache_dir, auth::session_token(&http), &Playback::default()).await?;
 
     let store = scratch("hush-m6-spclient.db")?;
     let gateway = spawn_gateway(&http, &tokens, &store);

@@ -1,4 +1,4 @@
-use crate::{Entity, List, Route};
+use crate::{Entity, List, Playback, Route};
 
 /// Something the user asked for in the UI, handled by the Controller.
 #[derive(Debug)]
@@ -38,6 +38,8 @@ pub enum Command {
     Search { query: Box<str>, now: bool },
     /// Show the next page of one kind of search result.
     SearchMore(Entity),
+    /// Use these playback settings from now on and keep them.
+    SetPlayback(Playback),
     /// Play the songs the search found, from the one with this key.
     PlayFound(u32),
     /// The UI needs the picture at `url`, `px` pixels square with corners of `radius`.

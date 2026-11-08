@@ -8,12 +8,13 @@ use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
 /// Schema changes in order; a database at `user_version` n has the first n applied.
-const MIGRATIONS: [&str; 5] = [
+const MIGRATIONS: [&str; 6] = [
     include_str!("../migrations/0001_http_cache.sql"),
     include_str!("../migrations/0002_library.sql"),
     include_str!("../migrations/0003_catalog.sql"),
     include_str!("../migrations/0004_search.sql"),
     include_str!("../migrations/0005_art.sql"),
+    include_str!("../migrations/0006_settings.sql"),
 ];
 
 /// Ways a database call can fail.
@@ -25,6 +26,8 @@ pub enum Error {
     Thread(#[from] std::io::Error),
     #[error("the database thread stopped")]
     Stopped,
+    #[error("settings: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 type Job = Box<dyn FnOnce(&Connection) + Send>;

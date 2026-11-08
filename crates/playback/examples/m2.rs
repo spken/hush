@@ -11,13 +11,13 @@ use std::{
 };
 
 use anyhow::Context;
-use model::Anchor;
+use model::{Anchor, Playback};
 use playback::{Device, EQ_BANDS_HZ};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 const TICK: Duration = Duration::from_millis(250);
 const BOOST_HZ: u16 = 1000;
-const BOOST_DB: f64 = 6.0;
+const BOOST_DB: f32 = 6.0;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> anyhow::Result<()> {
@@ -28,7 +28,8 @@ async fn main() -> anyhow::Result<()> {
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
 
-    let (device, mut events) = Device::start(cache_dir, auth::session_token(&http)).await?;
+    let (device, mut events) =
+        Device::start(cache_dir, auth::session_token(&http), &Playback::default()).await?;
     tracing::info!("\"Hush\" is in the Spotify Connect device list");
 
     let mut anchor = Anchor::new(Instant::now());
@@ -53,8 +54,8 @@ async fn main() -> anyhow::Result<()> {
             }
             Ok(Some(_)) = lines.next_line() => {
                 boosted = !boosted;
-                let gains = EQ_BANDS_HZ.map(|hz| if boosted && hz == BOOST_HZ { BOOST_DB } else { 0.0 });
-                device.set_eq(0.0, &gains);
+                let gains_db = EQ_BANDS_HZ.map(|hz| if boosted && hz == BOOST_HZ { BOOST_DB } else { 0.0 });
+                device.apply(&Playback { eq: true, gains_db, ..Playback::default() });
                 tracing::info!(boosted, "1 kHz boost");
             }
             _ = &mut stop => break,

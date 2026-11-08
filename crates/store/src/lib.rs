@@ -5,6 +5,7 @@ mod entities;
 mod http_cache;
 mod lists;
 mod search;
+mod settings;
 
 pub use db::{Error, Store};
 pub use http_cache::CachedResponse;

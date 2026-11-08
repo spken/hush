@@ -5,6 +5,7 @@ mod library;
 mod media;
 mod pages;
 mod search;
+mod settings;
 
 use std::{
     collections::HashMap,
@@ -17,7 +18,7 @@ use std::{
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
 use images::Images;
-use model::{Anchor, Art, Command, Event, List, Route};
+use model::{Anchor, Art, Command, Event, List, Playback, Route};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{
@@ -114,6 +115,8 @@ struct Controller {
     /// Cancels loading the backdrop of the track before.
     backdrop: CancellationToken,
     overlay: Option<Overlay>,
+    /// The playback settings, as saved.
+    playback: Playback,
 }
 
 /// Runs the Controller until every `Handle` is dropped; `own` lets the media overlay send
@@ -148,7 +151,13 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         pictures: CancellationToken::new(),
         backdrop: CancellationToken::new(),
         overlay: None,
+        playback: Playback::default(),
     };
+    match store.playback().await {
+        Ok(playback) => controller.playback = playback,
+        Err(error) => tracing::warn!(%error, "playback settings not read; using defaults"),
+    }
+    controller.view.playback(&controller.playback);
     controller.show_library().await;
     controller.show_search();
     if let Ok(Some(controls)) = media.await {
@@ -156,9 +165,10 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
     }
 
     // The two browser logins share a callback port, so they must not overlap.
+    let playback = controller.playback.clone();
     let start = async {
         let library = web_api(client_id.as_deref(), http.clone(), store, events).await;
-        let device = Device::start(cache_dir, auth::session_token(&http)).await;
+        let device = Device::start(cache_dir, auth::session_token(&http), &playback).await;
         (library, device)
     };
     tokio::pin!(start);
@@ -273,6 +283,8 @@ impl Controller {
                 tracing::info!("\"Hush\" is in the Spotify Connect device list");
                 self.view.connected();
                 let session = spclient.then(|| device.session());
+                // Settings changed while the device started.
+                device.apply(&self.playback);
                 self.device = Some(device);
                 (session, Some(events))
             }
@@ -348,6 +360,7 @@ impl Controller {
             Command::Search { query, now } => self.search(&query, now).await,
             Command::SearchMore(entity) => self.search_more(entity),
             Command::PlayFound(start) => report(self.play_found(start).await),
+            Command::SetPlayback(playback) => report(self.set_playback(playback).await),
             Command::LoadPicture { url, px, radius } => {
                 self.load_picture(PictureKey { url, px, radius });
             }

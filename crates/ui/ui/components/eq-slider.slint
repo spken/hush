@@ -1,0 +1,63 @@
+import { Theme } from "../theme.slint";
+
+// A vertical slider for a gain from -`range` to +`range` dB, flat in the middle, in half-dB
+// steps. The fill runs from the middle to the thumb; `changed` fires as it is dragged.
+export component EqSlider {
+    in property <float> db;
+    in property <float> range: Theme.eq-max-db;
+    in property <bool> enabled: true;
+    in property <string> label;
+    callback changed(float);
+
+    property <bool> active: root.enabled && (touch.has-hover || touch.pressed);
+    // How far up the slider the gain sits, from 0 at the bottom to 1 at the top.
+    property <float> level: (clamp(root.db, -root.range, root.range) + root.range) / (2 * root.range);
+    property <length> thumb-y: (1 - root.level) * root.height;
+
+    width: Theme.seek-hit;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.db + " dB";
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        width: Theme.seek-thickness;
+        border-radius: self.width / 2;
+        background: Theme.seek-track;
+    }
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: min(root.thumb-y, root.height / 2);
+        width: Theme.seek-thickness;
+        height: abs(root.thumb-y - root.height / 2);
+        background: !root.enabled ? Theme.text-tertiary : root.active ? Theme.text : Theme.text-secondary;
+        animate background { duration: Theme.duration-fast; easing: ease-out; }
+    }
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.thumb-y - self.height / 2;
+        width: Theme.seek-thumb;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.enabled ? Theme.text : Theme.text-tertiary;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                root.follow-pointer();
+            }
+        }
+        moved => { root.follow-pointer(); }
+        double-clicked => { root.changed(0); }
+    }
+
+    function follow-pointer() {
+        let level = clamp(1 - touch.mouse-y / max(1px, root.height), 0, 1);
+        root.changed(Math.round((level * 2 - 1) * root.range * 2) / 2);
+    }
+}

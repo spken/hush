@@ -1,0 +1,173 @@
+import { ComboBox, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { SettingsView } from "settings.slint";
+import { SectionHeader } from "components/section-header.slint";
+import { SettingRow } from "components/setting-row.slint";
+import { Toggle } from "components/toggle.slint";
+import { EqSlider } from "components/eq-slider.slint";
+
+// One equalizer band: its gain, a vertical slider and its frequency.
+component Band inherits VerticalLayout {
+    in property <string> label;
+    in property <float> db;
+    in property <bool> enabled;
+    callback changed(float);
+
+    width: Theme.eq-band-width;
+    spacing: Theme.space-2;
+
+    Text {
+        text: (root.db > 0 ? "+" : "") + Math.round(root.db * 10) / 10;
+        horizontal-alignment: center;
+        font-size: Theme.text-caption;
+        color: root.enabled ? Theme.text-secondary : Theme.text-tertiary;
+    }
+
+    HorizontalLayout {
+        alignment: center;
+
+        EqSlider {
+            height: Theme.eq-slider-height;
+            enabled: root.enabled;
+            label: root.label;
+            db: root.db;
+            changed(db) => { root.changed(db); }
+        }
+    }
+
+    Text {
+        text: root.label;
+        horizontal-alignment: center;
+        font-size: Theme.text-caption;
+        font-weight: Theme.weight-semibold;
+        color: root.enabled ? Theme.text : Theme.text-tertiary;
+    }
+}
+
+// Settings: how Hush plays, where it plays to, and the equalizer.
+export component SettingsPage inherits VerticalLayout {
+    padding-top: Theme.space-6;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-5;
+
+    Text {
+        height: Theme.pill-height;
+        text: "Settings";
+        vertical-alignment: center;
+        font-family: Theme.font-display;
+        font-size: Theme.text-title;
+        font-weight: Theme.weight-bold;
+        letter-spacing: Theme.tracking-display;
+        color: Theme.text;
+    }
+
+    scroll := ScrollView {
+        vertical-stretch: 1;
+        content-width: self.visible-width;
+
+        VerticalLayout {
+            width: scroll.visible-width;
+            max-width: Theme.settings-max-width;
+            padding-right: Theme.space-4;
+            padding-bottom: Theme.space-7;
+            spacing: Theme.space-2;
+
+            SectionHeader {
+                title: "Playback";
+            }
+
+            SettingRow {
+                title: "Output";
+                detail: "Where Hush plays sound. A change takes over at once.";
+
+                ComboBox {
+                    width: Theme.settings-control-width;
+                    model: SettingsView.outputs;
+                    current-index <=> SettingsView.output;
+                    selected => { SettingsView.changed(); }
+                }
+            }
+
+            SettingRow {
+                title: "Normalize Volume";
+                detail: "Plays every track at a similar loudness. Takes effect when Hush next starts.";
+
+                Toggle {
+                    label: "Normalize Volume";
+                    checked <=> SettingsView.normalisation;
+                    toggled => { SettingsView.changed(); }
+                }
+            }
+
+            SettingRow {
+                title: "Gapless Playback";
+                detail: "Lets tracks run into each other without a pause. Takes effect when Hush next starts.";
+
+                Toggle {
+                    label: "Gapless Playback";
+                    checked <=> SettingsView.gapless;
+                    toggled => { SettingsView.changed(); }
+                }
+            }
+
+            Rectangle {
+                height: Theme.space-5;
+            }
+
+            SectionHeader {
+                title: "Equalizer";
+            }
+
+            SettingRow {
+                title: "Equalizer";
+                detail: "Shapes the sound in ten bands. Changes are heard at once.";
+
+                Toggle {
+                    label: "Equalizer";
+                    checked <=> SettingsView.eq;
+                    toggled => { SettingsView.changed(); }
+                }
+            }
+
+            SettingRow {
+                title: "Preset";
+
+                ComboBox {
+                    width: Theme.settings-control-width;
+                    enabled: SettingsView.eq;
+                    model: SettingsView.presets;
+                    current-index: SettingsView.preset;
+                    selected => { SettingsView.choose-preset(self.current-index); }
+                }
+            }
+
+            HorizontalLayout {
+                padding-top: Theme.space-4;
+                spacing: Theme.space-2;
+                alignment: start;
+
+                Band {
+                    label: "Pre";
+                    db: SettingsView.preamp;
+                    enabled: SettingsView.eq;
+                    changed(db) => {
+                        SettingsView.preamp = db;
+                        SettingsView.changed();
+                    }
+                }
+
+                Rectangle {
+                    width: Theme.space-5;
+                }
+
+                for label[index] in SettingsView.bands: Band {
+                    label: label;
+                    db: SettingsView.gains[index];
+                    enabled: SettingsView.eq;
+                    changed(db) => { SettingsView.set-gain(index, db); }
+                }
+            }
+        }
+    }
+}

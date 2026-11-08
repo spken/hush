@@ -5963,8 +5963,10 @@ version = "0.0.0"
 dependencies = [
  "model",
  "rusqlite",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

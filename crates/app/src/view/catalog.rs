@@ -15,6 +15,7 @@ impl View {
             nav.set_page(match route {
                 Route::NowPlaying => Page::NowPlaying,
                 Route::Search => Page::Search,
+                Route::Settings => Page::Settings,
                 Route::Library => Page::Library,
                 Route::Album(_) => Page::Album,
                 Route::Artist(_) => Page::Artist,
@@ -95,6 +96,7 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
             Page::Library | Page::Album | Page::Artist => Route::Library,
             Page::NowPlaying => Route::NowPlaying,
             Page::Search => Route::Search,
+            Page::Settings => Route::Settings,
         };
         go.send(Command::Navigate(route));
     });

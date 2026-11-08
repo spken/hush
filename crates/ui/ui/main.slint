@@ -12,10 +12,12 @@ import { LibraryPage } from "library-page.slint";
 import { AlbumPage } from "album-page.slint";
 import { ArtistPage } from "artist-page.slint";
 import { SearchPage } from "search-page.slint";
+import { SettingsPage } from "settings-page.slint";
+import { SettingsView } from "settings.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 import { Backdrop } from "components/backdrop.slint";
 
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView }
 
 export component MainWindow inherits Window {
     property <bool> immersive;
@@ -84,6 +86,10 @@ export component MainWindow inherits Window {
                 }
 
                 if Nav.page == Page.search: SearchPage {
+                    vertical-stretch: 1;
+                }
+
+                if Nav.page == Page.settings: SettingsPage {
                     vertical-stretch: 1;
                 }
 

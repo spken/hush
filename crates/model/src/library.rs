@@ -38,6 +38,7 @@ pub enum Route {
     /// The artist with this key.
     Artist(u32),
     Search,
+    Settings,
 }
 
 /// What Spotify Connect plays from, so next and previous follow it.

@@ -5,6 +5,7 @@ mod art;
 mod catalog;
 mod library;
 mod search;
+mod settings;
 
 use std::{fmt, time::Instant};
 
@@ -150,6 +151,7 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
     catalog::bind(window, controller);
     search::bind(window, controller);
     art::bind(window, controller);
+    settings::bind(window, controller);
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {

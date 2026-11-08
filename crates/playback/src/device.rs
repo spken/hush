@@ -13,14 +13,14 @@ use librespot_playback::{
     mixer::{Mixer, MixerConfig, NoOpVolume, softmixer::SoftMixer},
     player::{Player, PlayerEventChannel},
 };
-use model::{Context, Event, SpotifyId, TrackId};
+use model::{Context, Event, Playback, SpotifyId, TrackId};
 use tokio::task::JoinHandle;
 
 use crate::{
-    EQ_BANDS_HZ, Error,
+    Error,
     eq::{self, Coefficients},
     event,
-    sink::EqSink,
+    sink::{EqSink, OutputChoice},
 };
 
 const NAME: &str = "Hush";
@@ -32,18 +32,21 @@ pub struct Device {
     session: Session,
     task: JoinHandle<()>,
     eq: Arc<ArcSwap<Coefficients>>,
+    output: OutputChoice,
 }
 
 /// The device's playback events, in the order they happened.
 pub struct Events(PlayerEventChannel);
 
 impl Device {
-    /// Logs a session in and registers the device as "Hush". The session uses the reusable
-    /// credentials librespot cached in `cache_dir`, or, when there are none, the access
-    /// token `login` produces; `login` is only awaited in that case.
+    /// Logs a session in and registers the device as "Hush", playing as `settings` say.
+    /// The session uses the reusable credentials librespot cached in `cache_dir`, or, when
+    /// there are none, the access token `login` produces; `login` is only awaited in that
+    /// case. Normalisation and gapless are fixed for the device's life.
     pub async fn start<E>(
         cache_dir: PathBuf,
         login: impl Future<Output = Result<String, E>>,
+        settings: &Playback,
     ) -> Result<(Self, Events), Error>
     where
         E: std::error::Error + Send + Sync + 'static,
@@ -62,18 +65,20 @@ impl Device {
         };
         let session = Session::new(SessionConfig::default(), Some(cache));
 
-        let eq = Arc::new(ArcSwap::from_pointee(eq::coefficients(0.0, &[0.0; _])));
+        let eq = Arc::new(ArcSwap::from_pointee(equalizer(settings)));
+        let output: OutputChoice = Arc::new(ArcSwap::from_pointee(settings.output.clone()));
         let mixer = Arc::new(SoftMixer::open(MixerConfig::default())?);
         // The player leaves volume alone; `EqSink` applies it after the EQ.
-        let (sink_eq, volume) = (eq.clone(), mixer.get_soft_volume());
+        let (sink_eq, sink_output, volume) = (eq.clone(), output.clone(), mixer.get_soft_volume());
         let config = PlayerConfig {
             bitrate: Bitrate::Bitrate320,
-            normalisation: true,
+            normalisation: settings.normalisation,
+            gapless: settings.gapless,
             ditherer: None,
             ..PlayerConfig::default()
         };
         let player = Player::new(config, session.clone(), Box::new(NoOpVolume), move || {
-            Box::new(EqSink::new(sink_eq, volume))
+            Box::new(EqSink::new(sink_eq, volume, sink_output))
         });
         let events = Events(player.get_player_event_channel());
 
@@ -89,6 +94,7 @@ impl Device {
             session,
             task,
             eq,
+            output,
         };
         Ok((device, events))
     }
@@ -98,11 +104,14 @@ impl Device {
         self.session.clone()
     }
 
-    /// Sets the equalizer: a preamp and one gain per band in `EQ_BANDS_HZ`, all in dB.
-    /// The change is heard within ~120 ms, ramped so it does not click.
-    pub fn set_eq(&self, preamp_db: f64, gains_db: &[f64; EQ_BANDS_HZ.len()]) {
-        self.eq
-            .store(Arc::new(eq::coefficients(preamp_db, gains_db)));
+    /// Applies the equalizer and output device of `settings`. An equalizer change is heard
+    /// within ~120 ms, ramped so it does not click; a new device takes over with the next
+    /// audio written.
+    pub fn apply(&self, settings: &Playback) {
+        self.eq.store(Arc::new(equalizer(settings)));
+        if **self.output.load() != settings.output {
+            self.output.store(Arc::new(settings.output.clone()));
+        }
     }
 
     /// Makes Hush the active Spotify Connect device, so it can play. Does nothing while it
@@ -202,4 +211,13 @@ impl fmt::Debug for Events {
 /// The Spotify URI of the `kind` entity with ID `id`.
 fn uri(kind: &str, id: SpotifyId) -> String {
     format!("spotify:{kind}:{id}")
+}
+
+/// The equalizer `settings` ask for; flat when it is off.
+fn equalizer(settings: &Playback) -> Coefficients {
+    if settings.eq {
+        eq::coefficients(settings.preamp_db.into(), &settings.gains_db.map(f64::from))
+    } else {
+        eq::coefficients(0.0, &[0.0; _])
+    }
 }

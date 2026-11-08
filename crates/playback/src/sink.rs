@@ -6,7 +6,7 @@ use std::{
 
 use arc_swap::ArcSwap;
 use cpal::{
-    BufferSize, Stream, StreamConfig,
+    BufferSize, DeviceId, Stream, StreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 use librespot_playback::{
@@ -19,6 +19,9 @@ use librespot_playback::{
 use rtrb::{Consumer, Producer, RingBuffer};
 
 use crate::eq::{Coefficients, Filters};
+
+/// The output device's ID, or `None` for the system default; shared with `Device`.
+pub(crate) type OutputChoice = Arc<ArcSwap<Option<Box<str>>>>;
 
 const BUFFER_SAMPLES: usize = SAMPLE_RATE as usize / 10 * NUM_CHANNELS as usize;
 const FULL_WAIT: Duration = Duration::from_millis(5);
@@ -35,42 +38,62 @@ pub(crate) struct EqSink {
     filters: Filters,
     volume: Box<dyn VolumeGetter + Send>,
     gain: f64,
-    // Opened on the first `start`, because building a sink cannot fail.
+    choice: OutputChoice,
+    // Opened on the first `start`, because building a sink cannot fail, and again when the
+    // choice of device changes.
     output: Option<Output>,
 }
 
 struct Output {
     stream: Stream,
     producer: Producer<f32>,
+    /// The choice it was opened for.
+    choice: Arc<Option<Box<str>>>,
 }
 
 impl EqSink {
     pub(crate) fn new(
         coefficients: Arc<ArcSwap<Coefficients>>,
         volume: Box<dyn VolumeGetter + Send>,
+        choice: OutputChoice,
     ) -> Self {
         let gain = volume.attenuation_factor();
         Self {
             filters: Filters::new(coefficients),
             volume,
             gain,
+            choice,
             output: None,
         }
+    }
+
+    /// The open output, opened afresh when there is none or another device was chosen.
+    fn output(&mut self) -> SinkResult<&mut Output> {
+        let choice = self.choice.load_full();
+        let current =
+            (self.output.as_ref()).is_some_and(|output| Arc::ptr_eq(&output.choice, &choice));
+        if !current {
+            // The old stream stops when dropped, before the new one opens.
+            self.output = None;
+            let output = Output::open(choice)?;
+            output
+                .stream
+                .play()
+                .map_err(|e| SinkError::StateChange(e.to_string()))?;
+            self.output = Some(output);
+        }
+        self.output
+            .as_mut()
+            .ok_or_else(|| SinkError::NotConnected("no output".into()))
     }
 }
 
 impl Sink for EqSink {
     fn start(&mut self) -> SinkResult<()> {
-        if self.output.is_none() {
-            self.output = Some(Output::open()?);
-        }
-        if let Some(output) = &self.output {
-            output
-                .stream
-                .play()
-                .map_err(|e| SinkError::StateChange(e.to_string()))?;
-        }
-        Ok(())
+        self.output()?
+            .stream
+            .play()
+            .map_err(|e| SinkError::StateChange(e.to_string()))
     }
 
     fn stop(&mut self) -> SinkResult<()> {
@@ -87,10 +110,6 @@ impl Sink for EqSink {
         let AudioPacket::Samples(mut samples) = packet else {
             return Err(SinkError::InvalidParams("passthrough is off".into()));
         };
-        let output = self
-            .output
-            .as_mut()
-            .ok_or_else(|| SinkError::NotConnected("written before start".into()))?;
         self.filters.update();
         let volume = self.volume.attenuation_factor();
         for frame in samples.chunks_exact_mut(NUM_CHANNELS.into()) {
@@ -100,15 +119,24 @@ impl Sink for EqSink {
                 *sample = limit(*sample * self.gain);
             }
         }
-        output.push(&samples)
+        self.output()?.push(&samples)
     }
 }
 
 impl Output {
-    fn open() -> SinkResult<Self> {
+    /// Opens the device `choice` names, or the system default when it names none or one
+    /// that is gone.
+    fn open(choice: Arc<Option<Box<str>>>) -> SinkResult<Self> {
         let refused = |e: &dyn std::fmt::Display| SinkError::ConnectionRefused(e.to_string());
-        let device = cpal::default_host()
-            .default_output_device()
+        let host = cpal::default_host();
+        let chosen = (choice.as_deref())
+            .and_then(|id| id.parse::<DeviceId>().ok())
+            .and_then(|id| host.device_by_id(&id));
+        if choice.is_some() && chosen.is_none() {
+            tracing::warn!("chosen output device is gone; using the default");
+        }
+        let device = chosen
+            .or_else(|| host.default_output_device())
             .ok_or_else(|| refused(&"no default output device"))?;
         let config = StreamConfig {
             channels: NUM_CHANNELS.into(),
@@ -124,7 +152,11 @@ impl Output {
                 None,
             )
             .map_err(|e| refused(&e))?;
-        Ok(Self { stream, producer })
+        Ok(Self {
+            stream,
+            producer,
+            choice,
+        })
     }
 
     /// Queues `samples`, waiting while the buffer is full; that wait is what paces the
@@ -180,4 +212,23 @@ fn limit(sample: f64) -> f64 {
     }
     let headroom = 1.0 - LIMITER_KNEE;
     (LIMITER_KNEE + headroom * ((magnitude - LIMITER_KNEE) / headroom).tanh()).copysign(sample)
+}
+
+/// The audio outputs Windows offers. Blocks while it asks.
+pub fn output_devices() -> Vec<model::OutputDevice> {
+    let devices = match cpal::default_host().output_devices() {
+        Ok(devices) => devices,
+        Err(error) => {
+            tracing::warn!(%error, "output devices not listed");
+            return Vec::new();
+        }
+    };
+    devices
+        .filter_map(|device| {
+            Some(model::OutputDevice {
+                id: device.id().ok()?.to_string().into(),
+                name: device.description().ok()?.name().into(),
+            })
+        })
+        .collect()
 }

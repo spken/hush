@@ -7,6 +7,7 @@ mod sink;
 
 pub use device::{Device, Events};
 pub use eq::EQ_BANDS_HZ;
+pub use sink::output_devices;
 
 /// Ways the librespot session or player can fail.
 #[derive(Debug, thiserror::Error)]

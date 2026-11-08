@@ -1,0 +1,38 @@
+import { Theme } from "../theme.slint";
+
+// An on/off switch in the accent colour: a capsule whose knob slides across when clicked.
+export component Toggle inherits Rectangle {
+    in-out property <bool> checked;
+    in property <string> label;
+    callback toggled();
+
+    width: Theme.toggle-width;
+    height: Theme.toggle-height;
+    border-radius: self.height / 2;
+    background: root.checked ? Theme.accent : touch.has-hover ? Theme.pressed : Theme.selected;
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: switch;
+    accessible-label: root.label;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    accessible-action-default => { touch.clicked(); }
+
+    Rectangle {
+        property <length> inset: (root.height - self.height) / 2;
+
+        x: root.checked ? root.width - self.width - self.inset : self.inset;
+        width: root.height - 2 * Theme.toggle-inset;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.checked ? Theme.on-accent : Theme.text-secondary;
+        animate x, background { duration: Theme.duration-fast; easing: ease-out; }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled();
+        }
+    }
+}
