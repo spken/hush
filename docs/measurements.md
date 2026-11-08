@@ -155,3 +155,20 @@ The decoded-picture cache is capped at 16 MB by construction (`kit::ByteLru`, 16
 the exit test's ≤ 16 MB holds whatever the session. Peak (≤ 100 MB) and steady (≤ 85 MB)
 RSS are far inside the targets. Still to check by hand: a full 30 minutes of mixed
 browsing, and CPU while scrolling a list over the art backdrop with a track playing.
+
+## M9 — Remote devices + resilience (Nov 8, 2026)
+
+`cargo run -p catalog --example soak -- 3` (debug build, smoke run of the soak on a copy
+of the database): 1 Web API request per minute (the `/me/player` heartbeat), 0 rate-limit
+and 0 quota 429s; the library sync was not due and artist browsing went through spclient
+at no cost. Private bytes 8.2 → 7.7 MiB over 3 minutes.
+
+Remote playback, checked in the app: with the session moved to the Spotify desktop app
+("SPKEN"), Hush shows its track, cover, backdrop and "Playing on SPKEN" at startup and
+within a few seconds of a transfer; moving it back to Hush through the device picker costs
+0 requests. Moving playback away from Hush fails with HTTP 500 when Hush holds a bare track
+list or a session it took over (see decisions).
+
+Still to run by hand: the 24 h soak in release (`cargo run --release -p catalog --example
+soak`), and a 5-minute network kill with the app open (it should show the notice, then
+reconnect without a restart).

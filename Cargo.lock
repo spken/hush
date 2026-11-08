@@ -660,6 +660,7 @@ dependencies = [
  "kit",
  "librespot-core",
  "librespot-protocol",
+ "memory-stats",
  "model",
  "playback",
  "protobuf",
