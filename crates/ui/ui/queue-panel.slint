@@ -1,0 +1,67 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Queue } from "queue.slint";
+import { Icons } from "components/icon.slint";
+import { IconButton } from "components/icon-button.slint";
+import { SongRow } from "components/song-row.slint";
+
+// What plays next, in a pane beside the page: the queue first, then the rest of what
+// plays.
+export component QueuePanel inherits Rectangle {
+    width: Theme.queue-width;
+    background: Theme.pane;
+
+    Rectangle {
+        x: 0;
+        width: Theme.hairline;
+        background: Theme.edge;
+    }
+
+    VerticalLayout {
+        padding-top: Theme.space-6;
+        padding-left: Theme.space-4;
+        padding-right: Theme.space-4;
+        spacing: Theme.space-4;
+
+        HorizontalLayout {
+            padding-left: Theme.space-2;
+            spacing: Theme.space-3;
+
+            Text {
+                horizontal-stretch: 1;
+                text: "Playing Next";
+                vertical-alignment: center;
+                overflow: elide;
+                font-family: Theme.font-display;
+                font-size: Theme.text-subtitle;
+                font-weight: Theme.weight-bold;
+                color: Theme.text;
+            }
+
+            IconButton {
+                icon: Icons.clear;
+                label: "Close Queue";
+                size: Theme.button-sm;
+                icon-size: Theme.icon-sm;
+                clicked => { Queue.set-open(false); }
+            }
+        }
+
+        if Queue.tracks.length == 0: Text {
+            x: Theme.space-2;
+            text: "Nothing plays next. Right-click a song and choose Add to Queue.";
+            wrap: word-wrap;
+            font-size: Theme.text-body;
+            color: Theme.text-secondary;
+        }
+
+        ListView {
+            vertical-stretch: 1;
+
+            for track in Queue.tracks: SongRow {
+                track: track;
+                playable: false;
+            }
+        }
+    }
+}

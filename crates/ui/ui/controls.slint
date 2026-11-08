@@ -4,10 +4,13 @@ import { Transport } from "components/transport.slint";
 import { Volume } from "components/volume.slint";
 import { DevicePicker } from "components/device-picker.slint";
 import { TrackSummary } from "components/track-summary.slint";
+import { IconButton } from "components/icon-button.slint";
+import { Icons } from "components/icon.slint";
+import { Queue } from "queue.slint";
 
 // The borderless strip along the bottom of the canvas: the current track on the left,
 // the transport over the timeline in the centre, volume and the device picker on the
-// right. The two sides are as wide as each other so the centre stays centred.
+// right, beside the queue button. The two sides are as wide as each other so the centre stays centred.
 export component Controls inherits HorizontalLayout {
     height: Theme.controls-height;
     padding-left: Theme.space-6;
@@ -37,6 +40,22 @@ export component Controls inherits HorizontalLayout {
 
         Volume {}
 
-        DevicePicker {}
+        HorizontalLayout {
+            spacing: Theme.space-3;
+
+            VerticalLayout {
+                alignment: center;
+
+                IconButton {
+                    icon: Icons.queue;
+                    label: "Playing Next";
+                    icon-size: Theme.icon-sm;
+                    selected: Queue.open;
+                    clicked => { Queue.set-open(!Queue.open); }
+                }
+            }
+
+            DevicePicker {}
+        }
     }
 }

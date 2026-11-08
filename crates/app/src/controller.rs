@@ -5,6 +5,7 @@ mod diagnostics;
 mod library;
 mod media;
 mod pages;
+mod queue;
 mod reconnect;
 mod remote;
 mod search;
@@ -39,6 +40,7 @@ use self::{
     diagnostics::Diagnostics,
     library::report,
     media::Overlay,
+    queue::{Panel, QUEUE_SETTLE},
     remote::{Remote, volume_to_percent},
     search::Search,
 };
@@ -128,6 +130,7 @@ struct Controller {
     /// Cancels loading the backdrop of the track before.
     backdrop: CancellationToken,
     overlay: Option<Overlay>,
+    queue: Panel,
     /// The playback settings, as saved.
     playback: Playback,
     remote: Remote,
@@ -161,6 +164,10 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         media,
     } = deps;
     let (events, mut service_events) = mpsc::channel(64);
+    let playback = store.playback().await.unwrap_or_else(|error| {
+        tracing::warn!(%error, "playback settings not read; using defaults");
+        Playback::default()
+    });
     let mut controller = Controller {
         view,
         store: store.clone(),
@@ -181,7 +188,8 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         pictures: CancellationToken::new(),
         backdrop: CancellationToken::new(),
         overlay: None,
-        playback: Playback::default(),
+        queue: Panel::Closed,
+        playback: playback.clone(),
         remote: Remote::new(),
         degraded: Vec::new(),
         cache_dir: cache_dir.clone(),
@@ -193,10 +201,6 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         http: http.clone(),
         restart: false,
     };
-    match store.playback().await {
-        Ok(playback) => controller.playback = playback,
-        Err(error) => tracing::warn!(%error, "playback settings not read; using defaults"),
-    }
     controller.view.playback(&controller.playback);
     let client_id = controller.client_id().await;
     controller.show_library().await;
@@ -206,7 +210,6 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
     }
 
     // The two browser logins share a callback port, so they must not overlap.
-    let playback = controller.playback.clone();
     let start = async {
         let library = web_api(client_id.as_deref(), http.clone(), store, events).await;
         let device = Device::start(cache_dir, auth::session_token(&http), &playback, None).await;
@@ -452,6 +455,8 @@ impl Controller {
                 start,
                 shuffle,
             } => report(self.play(list, start, shuffle).await),
+            Command::Queue(key) => report(self.add_to_queue(key).await),
+            Command::ShowQueue(open) => self.show_queue(open),
             Command::Navigate(route) => self.navigate(route).await,
             Command::Back => self.back().await,
             Command::OpenList(list) => self.open_list(list).await,
@@ -518,6 +523,7 @@ impl Controller {
                     overlay.track(Some(&track));
                 }
                 self.view.track(Some(track));
+                self.read_queue(QUEUE_SETTLE);
             }
             Event::Stopped => {
                 self.note("Player stopped");
@@ -526,9 +532,13 @@ impl Controller {
                     self.show_stopped();
                 }
                 self.view.progress(self.anchor);
+                self.read_queue(Duration::ZERO);
             }
             Event::Volume(volume) => self.view.volume(volume),
-            Event::Shuffle(shuffle) => self.view.shuffle(shuffle),
+            Event::Shuffle(shuffle) => {
+                self.view.shuffle(shuffle);
+                self.read_queue(QUEUE_SETTLE);
+            }
             Event::Active(active) => {
                 self.active = active;
                 if active {

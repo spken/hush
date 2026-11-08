@@ -5,6 +5,10 @@ export global Theme {
     out property <color> canvas: #0c0c0d;
     out property <color> canvas-minimized: #0c0c0c;
     out property <color> panel: #18181b;
+    // A side panel laid over the canvas, which shows through it.
+    out property <color> pane: #ffffff0a;
+    // Darkens art under a glyph laid over it.
+    out property <color> scrim: #00000099;
     out property <color> edge: #ffffff17;
     out property <color> edge-focus: #ffffff40;
     out property <color> field: #ffffff0d;
@@ -73,12 +77,13 @@ export global Theme {
     out property <length> rail-width: 72px;
     out property <length> controls-height: 88px;
     out property <length> volume-width: 104px;
-    out property <length> summary-width: 200px;
+    out property <length> summary-width: 256px;
     out property <length> player-width: 720px;
     // Room for two transport buttons either side of play/pause, which keeps it centred.
     out property <length> transport-side: 76px;
     out property <length> devices-width: 300px;
     out property <length> menu-width: 220px;
+    out property <length> queue-width: 340px;
     out property <length> menu-row: 36px;
     out property <length> status-dot: 8px;
     out property <length> empty-max-width: 380px;
