@@ -3,61 +3,56 @@ import { Icons } from "icon.slint";
 import { IconButton } from "icon-button.slint";
 import { Player } from "../player.slint";
 
-// Shuffle, previous, play/pause and next for the current track.
+// Shuffle, previous, play/pause and next for the current track, with play/pause centred.
 export component Transport inherits HorizontalLayout {
-    in property <length> button-size: Theme.button-md;
-    in property <length> icon-size: Theme.icon-md;
-    in property <length> play-size: Theme.button-lg;
-    in property <length> play-icon-size: Theme.icon-lg;
-
     alignment: center;
-    spacing: Theme.space-2;
+    spacing: Theme.space-3;
 
-    VerticalLayout {
-        alignment: center;
+    HorizontalLayout {
+        width: Theme.transport-side;
+        alignment: end;
+        spacing: Theme.space-3;
+
         IconButton {
             icon: Icons.shuffle;
             label: Player.shuffle ? "Turn Shuffle Off" : "Shuffle";
-            size: root.button-size;
-            icon-size: root.icon-size;
+            size: Theme.button-sm;
+            icon-size: Theme.icon-sm;
             enabled: Player.has-track;
             selected: Player.shuffle;
             tint: Player.shuffle ? Theme.text : Theme.text-secondary;
             clicked => { Player.set-shuffle(!Player.shuffle); }
         }
-    }
 
-    VerticalLayout {
-        alignment: center;
         IconButton {
             icon: Icons.previous;
             label: "Previous";
-            size: root.button-size;
-            icon-size: root.icon-size;
+            size: Theme.button-sm;
+            icon-size: Theme.icon-sm;
             enabled: Player.has-track;
             clicked => { Player.previous(); }
         }
     }
 
-    VerticalLayout {
-        alignment: center;
-        IconButton {
-            icon: Player.playing ? Icons.pause : Icons.play;
-            label: Player.playing ? "Pause" : "Play";
-            size: root.play-size;
-            icon-size: root.play-icon-size;
-            enabled: Player.has-track;
-            clicked => { Player.play-pause(); }
-        }
+    IconButton {
+        icon: Player.playing ? Icons.pause : Icons.play;
+        label: Player.playing ? "Pause" : "Play";
+        size: Theme.button-sm;
+        icon-size: Theme.icon-sm;
+        primary: true;
+        enabled: Player.has-track;
+        clicked => { Player.play-pause(); }
     }
 
-    VerticalLayout {
-        alignment: center;
+    HorizontalLayout {
+        width: Theme.transport-side;
+        alignment: start;
+
         IconButton {
             icon: Icons.next;
             label: "Next";
-            size: root.button-size;
-            icon-size: root.icon-size;
+            size: Theme.button-sm;
+            icon-size: Theme.icon-sm;
             enabled: Player.has-track;
             clicked => { Player.next(); }
         }

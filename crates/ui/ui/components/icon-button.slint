@@ -1,7 +1,8 @@
 import { Theme } from "../theme.slint";
 import { Icon } from "icon.slint";
 
-// A round, borderless button showing one glyph.
+// A round button showing one glyph: borderless, or with `primary` filled with the accent
+// colour.
 export component IconButton inherits Rectangle {
     in property <string> icon;
     in property <string> label;
@@ -9,13 +10,16 @@ export component IconButton inherits Rectangle {
     in property <length> icon-size: Theme.icon-md;
     in property <bool> enabled: true;
     in property <bool> selected;
-    in property <color> tint: Theme.text;
+    in property <bool> primary;
+    in property <color> tint: root.primary ? Theme.on-accent : Theme.text;
     callback clicked();
 
     width: root.size;
     height: root.size;
     border-radius: root.size / 2;
-    background: !root.enabled ? transparent : root.selected ? Theme.selected : touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
+    background: root.primary
+        ? (!root.enabled ? Theme.text-tertiary : touch.pressed ? Theme.accent-pressed : touch.has-hover ? Theme.accent-hover : Theme.accent)
+        : (!root.enabled ? transparent : root.selected ? Theme.selected : touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent);
     animate background { duration: Theme.duration-fast; easing: ease-out; }
     accessible-role: button;
     accessible-label: root.label;
@@ -26,7 +30,7 @@ export component IconButton inherits Rectangle {
         commands: root.icon;
         width: root.icon-size;
         height: root.icon-size;
-        fill: root.enabled ? root.tint : Theme.text-tertiary;
+        fill: root.enabled || root.primary ? root.tint : Theme.text-tertiary;
     }
 
     touch := TouchArea {

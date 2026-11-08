@@ -2,7 +2,7 @@ import { Theme } from "../theme.slint";
 import { Player, Format } from "../player.slint";
 import { SeekBar } from "seek-bar.slint";
 
-// Elapsed time, the seekable progress bar and remaining time of the current track.
+// Elapsed time, the seekable progress bar and length of the current track.
 export component Timeline inherits HorizontalLayout {
     in property <length> thickness: Theme.seek-thickness;
     in property <length> font-size: Theme.text-caption;
@@ -30,7 +30,7 @@ export component Timeline inherits HorizontalLayout {
 
     Text {
         width: Theme.time-width;
-        text: "-" + Format.clock(Player.duration-ms - root.shown-ms);
+        text: Format.clock(Player.duration-ms);
         vertical-alignment: center;
         font-size: root.font-size;
         color: Theme.text-tertiary;
