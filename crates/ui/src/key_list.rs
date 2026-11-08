@@ -89,6 +89,9 @@ impl<T: Clone + Default + 'static> KeyListModel<T> {
                 }
             }
         }
+        if filled.is_empty() {
+            return;
+        }
         let changed: Vec<usize> = (self.keys.borrow().iter().enumerate())
             .filter(|(_, key)| filled.contains(key))
             .map(|(row, _)| row)
