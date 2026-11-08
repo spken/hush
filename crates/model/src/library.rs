@@ -24,7 +24,6 @@ pub struct TrackRow {
     pub key: u32,
     pub name: Box<str>,
     pub artists: Box<str>,
-    pub album: Box<str>,
     pub duration_ms: u32,
 }
 

@@ -95,7 +95,7 @@ impl Store {
         self.call(move |conn| {
             rows(
                 conn,
-                "SELECT key, name, artists, album, duration_ms FROM track \
+                "SELECT key, name, artists, duration_ms FROM track \
                  WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
@@ -103,8 +103,7 @@ impl Store {
                         key: row.get(0)?,
                         name: boxed(row.get(1)?),
                         artists: boxed(row.get(2)?),
-                        album: boxed(row.get(3)?),
-                        duration_ms: row.get(4)?,
+                        duration_ms: row.get(3)?,
                     })
                 },
             )

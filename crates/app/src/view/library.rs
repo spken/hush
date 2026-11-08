@@ -68,7 +68,6 @@ impl View {
                     let track = ui::TrackRow {
                         title: row.name.as_ref().into(),
                         artists: row.artists.as_ref().into(),
-                        album: row.album.as_ref().into(),
                         duration: clock(row.duration_ms).into(),
                     };
                     (row.key, track)
