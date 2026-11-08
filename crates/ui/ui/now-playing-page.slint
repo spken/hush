@@ -2,6 +2,11 @@ import { Theme } from "theme.slint";
 import { Player, Format, Connection } from "player.slint";
 import { Icons } from "components/icon.slint";
 import { EmptyState } from "components/empty-state.slint";
+import { Grid } from "components/grid.slint";
+import { SectionHeader } from "components/section-header.slint";
+import { Tile } from "components/tile.slint";
+import { Library, AlbumRow } from "library.slint";
+import { Nav, Page, AlbumView } from "catalog.slint";
 import { Artwork } from "components/artwork.slint";
 import { PillButton } from "components/pill-button.slint";
 
@@ -83,16 +88,55 @@ export component NowPlayingPage {
         }
     }
 
-    if !Player.has-track: EmptyState {
-        width: 100%;
-        height: 100%;
-        glyph: Icons.note;
-        glyph-color: Player.connection == Connection.failed ? Theme.danger : Theme.text-tertiary;
-        title: Player.connection == Connection.connecting ? "Connecting to Spotify…"
-            : Player.connection == Connection.failed ? "Couldn’t connect to Spotify"
-            : "Nothing playing";
-        message: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
-            : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
-            : "In Spotify on your phone or computer, open the device list and choose Hush.";
+    if !Player.has-track: VerticalLayout {
+        padding-left: Theme.space-7;
+        padding-right: Theme.space-7;
+        padding-bottom: Theme.space-6;
+        spacing: Theme.space-6;
+
+        EmptyState {
+            vertical-stretch: 1;
+            glyph: Icons.note;
+            glyph-color: Player.connection == Connection.failed ? Theme.danger : Theme.text-tertiary;
+            title: Player.connection == Connection.connecting ? "Connecting to Spotify…"
+                : Player.connection == Connection.failed ? "Couldn’t connect to Spotify"
+                : "Nothing playing";
+            message: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
+                : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
+                : "Play something you added recently, or choose Hush in Spotify’s device list on your phone or computer.";
+        }
+
+        // The newest saved albums: one row of them, as many as fit.
+        if Library.albums.length > 0: VerticalLayout {
+            vertical-stretch: 0;
+            spacing: Theme.space-4;
+
+            SectionHeader {
+                title: "Recently Added";
+                action: "See All";
+                clicked => {
+                    Library.open(-1);
+                    Nav.go(Page.library);
+                }
+            }
+
+            recent := Grid {
+                count: min(Library.albums.length, self.columns);
+
+                for index in recent.count: Tile {
+                    property <AlbumRow> album: Library.albums[index];
+
+                    x: recent.cell-x(index);
+                    y: recent.cell-y(index);
+                    width: recent.cell;
+                    art: self.album.art;
+                    title: self.album.name;
+                    detail: self.album.artists;
+                    playable: true;
+                    clicked => { Nav.open-album(self.album.key); }
+                    play => { AlbumView.play(self.album.key, 0, false); }
+                }
+            }
+        }
     }
 }

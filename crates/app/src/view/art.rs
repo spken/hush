@@ -14,7 +14,7 @@ use crate::controller;
 /// Decoded pictures kept in memory.
 const CACHE_BYTES: u64 = 16 * 1024 * 1024;
 /// A tile's picture, the most common size.
-const TYPICAL_BYTES: u64 = 240 * 240 * 4;
+const TYPICAL_BYTES: u64 = 320 * 320 * 4;
 
 /// A picture as the UI asks for it: its URL, its size in pixels and its corner radius.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
