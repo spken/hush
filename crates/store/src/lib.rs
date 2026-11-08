@@ -4,6 +4,7 @@ mod db;
 mod entities;
 mod http_cache;
 mod lists;
+mod played;
 mod search;
 mod settings;
 

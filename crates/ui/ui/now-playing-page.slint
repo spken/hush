@@ -5,8 +5,8 @@ import { EmptyState } from "components/empty-state.slint";
 import { Grid } from "components/grid.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { Tile } from "components/tile.slint";
-import { Library, AlbumRow } from "library.slint";
-import { Nav, Page, AlbumView } from "catalog.slint";
+import { Library, PlaylistRow } from "library.slint";
+import { Nav, Page } from "catalog.slint";
 import { Artwork } from "components/artwork.slint";
 import { PillButton } from "components/pill-button.slint";
 
@@ -104,38 +104,37 @@ export component NowPlayingPage {
                 : "Nothing playing";
             message: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
                 : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
-                : "Play something you added recently, or choose Hush in Spotify’s device list on your phone or computer.";
+                : "Pick up a playlist where you left off, or choose Hush in Spotify’s device list on your phone or computer.";
         }
 
-        // The newest saved albums: one row of them, as many as fit.
-        if Library.albums.length > 0: VerticalLayout {
+        // The playlists played last: one row of them, as many as fit.
+        if Library.recent.length > 0: VerticalLayout {
             vertical-stretch: 0;
             spacing: Theme.space-4;
 
             SectionHeader {
-                title: "Recently Added";
-                action: "See All";
-                clicked => {
-                    Library.open(-1);
-                    Nav.go(Page.library);
-                }
+                title: "Recently Played";
             }
 
             recent := Grid {
-                count: min(Library.albums.length, self.columns);
+                count: min(Library.recent.length, self.columns);
 
                 for index in recent.count: Tile {
-                    property <AlbumRow> album: Library.albums[index];
+                    property <PlaylistRow> playlist: Library.recent[index];
 
                     x: recent.cell-x(index);
                     y: recent.cell-y(index);
                     width: recent.cell;
-                    art: self.album.art;
-                    title: self.album.name;
-                    detail: self.album.artists;
+                    art: self.playlist.art;
+                    title: self.playlist.name;
+                    detail: self.playlist.detail;
+                    glyph: Icons.note;
                     playable: true;
-                    clicked => { Nav.open-album(self.album.key); }
-                    play => { AlbumView.play(self.album.key, 0, false); }
+                    clicked => {
+                        Library.open(self.playlist.key);
+                        Nav.go(Page.library);
+                    }
+                    play => { Library.play(self.playlist.key, 0, false); }
                 }
             }
         }

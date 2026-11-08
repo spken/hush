@@ -26,6 +26,15 @@ impl View {
         });
     }
 
+    /// Shows the playlists played last, most recent first.
+    pub(crate) fn recent(&self, keys: Vec<u32>) {
+        self.update(move |window| {
+            with_list(&window.global::<Library>().get_recent(), |list| {
+                list.set_keys(keys);
+            });
+        });
+    }
+
     /// Shows how many Liked Songs there are.
     pub(crate) fn liked(&self, songs: u32) {
         self.update(move |window| {
@@ -170,6 +179,7 @@ impl View {
                 .collect();
             for model in [
                 window.global::<Library>().get_playlists(),
+                window.global::<Library>().get_recent(),
                 window.global::<ui::SearchView>().get_playlists(),
             ] {
                 with_list(&model, |list| list.fill(rows.iter().cloned()));
@@ -229,6 +239,10 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
         Entity::Album,
     ))));
     library.set_playlists(ModelRc::from(KeyListModel::new(super::load(
+        controller,
+        Entity::Playlist,
+    ))));
+    library.set_recent(ModelRc::from(KeyListModel::new(super::load(
         controller,
         Entity::Playlist,
     ))));

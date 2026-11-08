@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use model::{
     Entity, SpotifyId,
-    web::{Devices, Player, Profile, Search},
+    web::{Devices, History, Player, Profile, Search},
 };
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
@@ -79,6 +79,12 @@ impl ApiGateway {
     /// The user's Spotify Connect devices.
     pub async fn devices(&self, cancel: CancellationToken) -> Result<Devices, Error> {
         self.get("/me/player/devices", Lane::P1, cancel).await
+    }
+
+    /// The last 50 tracks the user played, on any device; Spotify keeps no more.
+    pub async fn recently_played(&self, cancel: CancellationToken) -> Result<History, Error> {
+        self.get("/me/player/recently-played?limit=50", Lane::P1, cancel)
+            .await
     }
 
     /// What plays on the active device; `None` when no device is active.

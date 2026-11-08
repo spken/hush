@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::Art;
+use crate::{Art, SpotifyId};
 
 /// One page of a Web API list. Missing `Option` fields read as `None`.
 #[derive(Debug, Deserialize)]
@@ -151,4 +151,47 @@ pub struct Player {
     pub is_playing: Option<bool>,
     /// The track; an episode or an ad reads as a track without an ID.
     pub item: Option<Track>,
+}
+
+/// `/me/player/recently-played`: the last tracks played, newest first.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct History {
+    pub items: Vec<Played>,
+}
+
+/// A track in the listening history; only where it was played from is read.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Played {
+    /// ISO 8601 UTC.
+    pub played_at: Option<Box<str>>,
+    pub context: Option<PlayedFrom>,
+}
+
+/// The album, playlist or artist a track was played from.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct PlayedFrom {
+    /// Such as `spotify:playlist:{id}`, sometimes followed by `?` and session details.
+    pub uri: Option<Box<str>>,
+}
+
+impl History {
+    /// The playlists played from, each with when it was last played, newest first.
+    pub fn playlists(self) -> Vec<(SpotifyId, Box<str>)> {
+        let mut playlists: Vec<(SpotifyId, Box<str>)> = Vec::new();
+        for played in self.items {
+            let id = (played.context.and_then(|context| context.uri)).and_then(|uri| {
+                let id = uri.strip_prefix("spotify:playlist:")?.split('?').next()?;
+                id.parse().ok()
+            });
+            if let (Some(id), Some(at)) = (id, played.played_at)
+                && !playlists.iter().any(|&(seen, _)| seen == id)
+            {
+                playlists.push((id, at));
+            }
+        }
+        playlists
+    }
 }

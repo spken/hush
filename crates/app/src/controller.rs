@@ -473,6 +473,7 @@ impl Controller {
                 }
                 self.view.track(None);
                 self.view.progress(self.anchor);
+                self.show_recent();
             }
             Event::Volume(volume) => self.view.volume(volume),
             Event::Active(active) => {
@@ -498,6 +499,7 @@ impl Controller {
             Event::Synced => {
                 self.syncing = None;
                 self.view.syncing(None);
+                self.show_recent();
             }
             Event::ListChanged(list) => report(self.list_changed(list).await),
             Event::Fetched { list, outcome } => report(self.fetched(list, outcome).await),

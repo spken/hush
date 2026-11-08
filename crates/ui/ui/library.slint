@@ -41,6 +41,8 @@ export struct PlaylistRow {
 
 export global Library {
     in property <[PlaylistRow]> playlists;
+    // The playlists played last, most recent first.
+    in property <[PlaylistRow]> recent;
     in property <string> liked-detail;
     in property <string> albums-detail;
     // What the library page shows: 0 for Liked Songs, -1 for the saved albums, else the

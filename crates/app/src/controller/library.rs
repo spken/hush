@@ -4,6 +4,9 @@ use model::{Entity, Event, List, Route};
 use tokio_util::sync::CancellationToken;
 
 use super::Controller;
+
+/// How many recently played playlists the now-playing page can show.
+const RECENT: u32 = 12;
 use crate::view::{Loading, Open};
 
 impl Controller {
@@ -39,6 +42,32 @@ impl Controller {
         report(self.show_liked().await);
         report(self.show_saved_albums().await);
         report(self.show_open().await);
+        self.show_recent();
+    }
+
+    /// Records the playlists in Spotify's listening history, then shows the ones played
+    /// last. The history holds only the last 50 tracks, so the database remembers older
+    /// plays.
+    pub(super) fn show_recent(&self) {
+        let gateway = (self.library.as_ref()).map(|library| library.gateway.clone());
+        let store = self.store.clone();
+        let view = self.view.clone();
+        tokio::spawn(async move {
+            if let Some(gateway) = gateway {
+                match gateway.recently_played(CancellationToken::new()).await {
+                    Ok(history) => {
+                        if let Err(error) = store.save_played(history.playlists()).await {
+                            tracing::warn!(%error, "listening history not stored");
+                        }
+                    }
+                    Err(error) => tracing::warn!(%error, "listening history not read"),
+                }
+            }
+            match store.recent_playlists(RECENT).await {
+                Ok(keys) => view.recent(keys),
+                Err(error) => tracing::warn!(%error, "recent playlists not read"),
+            }
+        });
     }
 
     /// Shows a list that changed in the database wherever it is on show.

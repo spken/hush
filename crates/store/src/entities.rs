@@ -241,7 +241,7 @@ impl Store {
     }
 }
 
-fn in_transaction<T>(
+pub(crate) fn in_transaction<T>(
     conn: &Connection,
     work: impl FnOnce(&Connection) -> rusqlite::Result<T>,
 ) -> rusqlite::Result<T> {
