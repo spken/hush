@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use model::{
-    Event, List,
-    web::{Added, Page, Playlist},
+    Event, List, catalog,
+    web::{self, Added, Page, Playlist},
 };
 use serde::de::DeserializeOwned;
 use store::{Entry, Store};
@@ -10,20 +10,13 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
-/// Entries per Web API page, the most Spotify allows.
-const PAGE: u32 = 50;
+use crate::{
+    Error,
+    web_api::{self, PAGE},
+};
 /// How old the last sync may get before the next one is due.
 const SYNC_EVERY: Duration = Duration::from_hours(24);
 const LIBRARY: [List; 3] = [List::LikedSongs, List::SavedAlbums, List::Playlists];
-
-/// Ways a library sync can fail.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Web(#[from] webapi::Error),
-    #[error("library database: {0}")]
-    Store(#[from] store::Error),
-}
 
 /// What library sync reads from and writes to.
 #[derive(Debug, Clone)]
@@ -44,9 +37,9 @@ pub async fn sync(library: &Library, force: bool, cancel: &CancellationToken) ->
     }
     let sync = Sync { library, cancel };
     sync.emit(Event::Syncing { done: 0, total: 0 }).await;
-    sync.saved::<Added<_>>(List::LikedSongs, "/me/tracks", &Store::save_tracks)
+    sync.saved::<Added<web::Track>>(List::LikedSongs, "/me/tracks", &Store::save_tracks)
         .await?;
-    sync.saved::<Added<_>>(List::SavedAlbums, "/me/albums", &Store::save_albums)
+    sync.saved::<Added<web::Album>>(List::SavedAlbums, "/me/albums", &Store::save_albums)
         .await?;
     sync.playlists().await?;
     tracing::info!("library synced");
@@ -63,30 +56,38 @@ async fn due(store: &Store) -> Result<bool, Error> {
     Ok(false)
 }
 
-/// An entry of a Web API list: the item it holds and when it was added.
+/// An entry of a Web API list: the item it holds, ready to store, and when it was added.
 trait Listed: DeserializeOwned {
     type Item;
+    /// `None` for the item when it is not stored, such as an episode.
     fn split(self) -> (Option<Box<str>>, Option<Self::Item>);
 }
 
-impl<T: DeserializeOwned> Listed for Added<T> {
-    type Item = T;
-    fn split(self) -> (Option<Box<str>>, Option<T>) {
-        (self.added_at, self.item)
+impl Listed for Added<web::Track> {
+    type Item = catalog::Track;
+    fn split(self) -> (Option<Box<str>>, Option<catalog::Track>) {
+        (self.added_at, self.item.and_then(web_api::track))
+    }
+}
+
+impl Listed for Added<web::Album> {
+    type Item = catalog::Album;
+    fn split(self) -> (Option<Box<str>>, Option<catalog::Album>) {
+        (self.added_at, self.item.and_then(web_api::album))
     }
 }
 
 impl Listed for Playlist {
     type Item = Self;
     fn split(self) -> (Option<Box<str>>, Option<Self>) {
-        (None, Some(self))
+        (None, self.id.is_some().then_some(self))
     }
 }
 
-/// Saves a page's items and returns their keys, `None` for items it skipped.
-trait Save<T>: AsyncFn(&Store, Vec<T>) -> Result<Vec<Option<u32>>, store::Error> {}
+/// Saves a page's items and returns their keys, in order.
+trait Save<T>: AsyncFn(&Store, Vec<T>) -> Result<Vec<u32>, store::Error> {}
 
-impl<T, F: AsyncFn(&Store, Vec<T>) -> Result<Vec<Option<u32>>, store::Error>> Save<T> for F {}
+impl<T, F: AsyncFn(&Store, Vec<T>) -> Result<Vec<u32>, store::Error>> Save<T> for F {}
 
 /// A page that was read: its entries, the list's total and how many entries Spotify sent.
 struct Read {
@@ -155,7 +156,7 @@ impl Sync<'_> {
             let list = List::Playlist(playlist.key);
             let path = format!("/playlists/{}/items", playlist.id);
             match self
-                .reread::<Added<_>>(list, &path, &Store::save_tracks)
+                .reread::<Added<web::Track>>(list, &path, &Store::save_tracks)
                 .await
             {
                 // A playlist someone else owns and made collaborative without the user in it.
@@ -226,15 +227,9 @@ impl Sync<'_> {
             })
             .unzip();
         let keys = save(&self.library.store, items).await?;
-        let entries = keys
-            .into_iter()
+        let entries = (keys.into_iter())
             .zip(added)
-            .filter_map(|(key, added_at)| {
-                Some(Entry {
-                    key: key?,
-                    added_at,
-                })
-            })
+            .map(|(key, added_at)| Entry { key, added_at })
             .collect();
         Ok(Read {
             entries,

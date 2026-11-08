@@ -65,7 +65,7 @@ Connect device and metadata source, and a metered Web API gateway.
 | `auth` | PKCE, loopback callback, keyring, `TokenProvider`. | `model` |
 | `webapi` | `ApiGateway` actor and typed endpoint fns. | `model`, `kit`, `auth`, `store` |
 | `playback` | librespot `Session`/`Spirc`/`Player`, `EqSink`, `AtomicMixer`, event mapping. | `model`, `kit`, librespot |
-| `catalog` | `CatalogSource` trait, spclient + Web API sources, library sync. | `model`, `kit`, `store`, `webapi`, `librespot-core`, `librespot-metadata` |
+| `catalog` | `CatalogSource` trait, spclient + Web API sources, `CatalogService`, library sync. | `model`, `kit`, `store`, `webapi`, `librespot-core`, `librespot-protocol` |
 | `images` | CDN fetch, disk cache, decode/resize, RAM LRU. | `model`, `kit`, `store` |
 | `ui` | `.slint` files, theme tokens, `slint::Model` adapters. | `model`, `slint` |
 | `app` (bin) | `main`, runtime setup, Controller, wiring, Windows glue. | everything |

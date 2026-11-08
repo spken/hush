@@ -16,6 +16,17 @@ pub enum Degraded {
     QuotaExceeded,
 }
 
+/// How a catalog lookup ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fetch {
+    /// The database already had the list.
+    Unchanged,
+    /// The list was fetched and stored.
+    Changed,
+    /// No catalog source could provide it.
+    Failed,
+}
+
 /// Something that happened on Hush's own playback device or to its services.
 #[derive(Debug)]
 pub enum Event {
@@ -31,6 +42,8 @@ pub enum Event {
     Stopped,
     /// The device volume changed, from 0 to `u16::MAX`.
     Volume(u16),
+    /// Hush became, or stopped being, the active Spotify Connect device.
+    Active(bool),
     /// A service fell back to a degraded mode.
     Degraded(Degraded),
     /// Library sync is running: `done` of `total` entries of the list being read, both 0
@@ -38,6 +51,8 @@ pub enum Event {
     Syncing { done: u32, total: u32 },
     /// Library sync ended.
     Synced,
-    /// A library list changed in the database.
+    /// A list changed in the database.
     ListChanged(List),
+    /// A catalog lookup of a list ended.
+    Fetched { list: List, outcome: Fetch },
 }

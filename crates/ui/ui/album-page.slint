@@ -1,0 +1,63 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Nav, AlbumView } from "catalog.slint";
+import { Icons } from "components/icon.slint";
+import { IconButton } from "components/icon-button.slint";
+import { PosterHeader } from "components/poster-header.slint";
+import { SongRow } from "components/song-row.slint";
+
+// An album set like a poster: cover, title, artist and year, Play and Shuffle, then its
+// tracks by number.
+export component AlbumPage inherits VerticalLayout {
+    // A newly opened album starts at its top.
+    property <int> key: AlbumView.key;
+    changed key => { songs.content-y = 0; }
+
+    padding-top: Theme.space-5;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-5;
+
+    HorizontalLayout {
+        alignment: start;
+
+        IconButton {
+            icon: Icons.back;
+            label: "Back";
+            enabled: Nav.can-back;
+            clicked => { Nav.back(); }
+        }
+    }
+
+    PosterHeader {
+        glyph: Icons.album;
+        label: AlbumView.label;
+        title: AlbumView.title;
+        link: AlbumView.artists;
+        detail: AlbumView.detail;
+        playable: AlbumView.tracks.length > 0;
+        open-link => {
+            if (AlbumView.artist-key > 0) {
+                Nav.open-artist(AlbumView.artist-key);
+            }
+        }
+        play(shuffle) => { AlbumView.play(AlbumView.key, 0, shuffle); }
+    }
+
+    if AlbumView.status != "": Text {
+        text: AlbumView.status;
+        wrap: word-wrap;
+        font-size: Theme.text-body;
+        color: Theme.text-secondary;
+    }
+
+    songs := ListView {
+        vertical-stretch: 1;
+        for track[index] in AlbumView.tracks: SongRow {
+            track: track;
+            number: index + 1;
+            play => { AlbumView.play(AlbumView.key, track.key, false); }
+            open-artist(key) => { Nav.open-artist(key); }
+        }
+    }
+}

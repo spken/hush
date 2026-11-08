@@ -11,6 +11,7 @@ export component PillButton inherits Rectangle {
 
     height: Theme.pill-height;
     min-width: Theme.pill-min-width;
+    horizontal-stretch: 0;
     border-radius: self.height / 2;
     background: root.primary
         ? (touch.pressed ? Theme.accent-pressed : touch.has-hover ? Theme.accent-hover : Theme.accent)

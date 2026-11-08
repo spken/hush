@@ -645,13 +645,23 @@ dependencies = [
 name = "catalog"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
+ "auth",
+ "dotenvy",
+ "kit",
+ "librespot-core",
+ "librespot-protocol",
  "model",
+ "playback",
+ "protobuf",
+ "reqwest",
  "serde",
  "store",
  "thiserror 2.0.21",
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "webapi",
 ]
 

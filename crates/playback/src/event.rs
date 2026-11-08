@@ -15,6 +15,8 @@ pub(crate) fn map(event: PlayerEvent) -> Option<Event> {
         }
         PlayerEvent::Stopped { .. } => Some(Event::Stopped),
         PlayerEvent::VolumeChanged { volume } => Some(Event::Volume(volume)),
+        PlayerEvent::SessionConnected { .. } => Some(Event::Active(true)),
+        PlayerEvent::SessionDisconnected { .. } => Some(Event::Active(false)),
         _ => None,
     }
 }

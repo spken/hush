@@ -28,17 +28,21 @@ pub struct Track {
     pub kind: Option<Box<str>>,
     pub name: Option<Box<str>>,
     pub artists: Vec<Named>,
-    pub album: Option<Named>,
     pub duration_ms: Option<u32>,
 }
 
-/// An album.
+/// An album; only `/albums/{id}` includes its first page of tracks.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Album {
     pub id: Option<Box<str>>,
     pub name: Option<Box<str>>,
     pub artists: Vec<Named>,
+    /// `"album"`, `"single"` or `"compilation"`.
+    pub album_type: Option<Box<str>>,
+    /// `YYYY-MM-DD`, `YYYY-MM` or `YYYY`.
+    pub release_date: Option<Box<str>>,
+    pub tracks: Option<Page<Track>>,
 }
 
 /// A playlist as the user's playlist list describes it.
@@ -54,10 +58,11 @@ pub struct Playlist {
     pub items: Option<Count>,
 }
 
-/// An artist or album where another object mentions it.
+/// An artist: where another object mentions it, or from `/artists/{id}`.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Named {
+    pub id: Option<Box<str>>,
     pub name: Option<Box<str>>,
 }
 

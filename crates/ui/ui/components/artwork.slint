@@ -1,15 +1,17 @@
 import { Theme } from "../theme.slint";
 import { Icon, Icons } from "icon.slint";
 
-// Square album art; a neutral placeholder with a glyph until art is loaded.
+// Square album art, or a round artist portrait; a neutral placeholder with a glyph until
+// art is loaded.
 export component Artwork inherits Rectangle {
     in property <length> size;
     in property <bool> large;
+    in property <bool> round;
     in property <string> glyph: Icons.note;
 
     width: root.size;
     height: root.size;
-    border-radius: root.large ? Theme.radius-lg : Theme.radius-sm;
+    border-radius: root.round ? root.size / 2 : root.large ? Theme.radius-lg : Theme.radius-sm;
     background: Theme.art;
 
     Icon {

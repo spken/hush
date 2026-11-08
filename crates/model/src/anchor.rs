@@ -30,10 +30,12 @@ impl Anchor {
             Event::Stopped => (0, false),
             Event::TrackChanged(_)
             | Event::Volume(_)
+            | Event::Active(_)
             | Event::Degraded(_)
             | Event::Syncing { .. }
             | Event::Synced
-            | Event::ListChanged(_) => return,
+            | Event::ListChanged(_)
+            | Event::Fetched { .. } => return,
         };
         *self = Self {
             position_ms,

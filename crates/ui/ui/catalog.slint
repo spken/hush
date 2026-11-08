@@ -1,0 +1,46 @@
+// Navigation and the album and artist pages' state, pushed by the Controller.
+
+import { TrackRow, AlbumRow } from "library.slint";
+
+export enum Page { now-playing, library, album, artist }
+
+export global Nav {
+    in property <Page> page;
+    // Whether Back leads anywhere.
+    in property <bool> can-back;
+
+    // Shows a top-level page.
+    callback go(Page);
+    callback back();
+    callback open-album(int);
+    callback open-artist(int);
+}
+
+export global AlbumView {
+    in property <int> key;
+    // "ALBUM", "SINGLE" or "COMPILATION".
+    in property <string> label;
+    in property <string> title;
+    in property <string> artists;
+    // The first artist, or 0 when unknown.
+    in property <int> artist-key;
+    in property <string> detail;
+    // Why there are no tracks to show yet, or "".
+    in property <string> status;
+    in property <[TrackRow]> tracks;
+
+    // Plays the album with this key from the track with this key, or 0 for its top.
+    callback play(int, int, bool);
+}
+
+export global ArtistView {
+    in property <int> key;
+    in property <string> name;
+    // Why there is nothing to show yet, or "".
+    in property <string> status;
+    in property <[TrackRow]> top-tracks;
+    in property <[AlbumRow]> albums;
+
+    // Plays the artist with this key from the track with this key, or 0 for the top.
+    callback play(int, int, bool);
+}

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use crate::Error;
 
@@ -25,6 +25,20 @@ impl FromStr for SpotifyId {
                     .ok_or_else(invalid)
             })
             .map(Self)
+    }
+}
+
+impl fmt::Display for SpotifyId {
+    /// The 22-character base62 form.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut digits = [0u8; BASE62_LEN];
+        let mut rest = self.0;
+        for digit in digits.iter_mut().rev() {
+            let index = u8::try_from(rest % 62).map_err(|_| fmt::Error)?;
+            *digit = BASE62[usize::from(index)];
+            rest /= 62;
+        }
+        f.write_str(std::str::from_utf8(&digits).map_err(|_| fmt::Error)?)
     }
 }
 

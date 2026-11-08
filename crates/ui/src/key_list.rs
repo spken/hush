@@ -66,7 +66,8 @@ impl<T: Clone + Default + 'static> KeyListModel<T> {
         self.notify.reset();
     }
 
-    /// Stores loaded rows and redraws them where they are on show.
+    /// Stores the loaded rows this list asked for and redraws them where they are on show.
+    /// Rows other lists asked for are ignored.
     pub fn fill(&self, loaded: impl IntoIterator<Item = (u32, T)>) {
         let generation = self.generation.get();
         let mut filled = HashSet::new();
@@ -74,7 +75,9 @@ impl<T: Clone + Default + 'static> KeyListModel<T> {
             let mut rows = self.rows.borrow_mut();
             let mut requested = self.requested.borrow_mut();
             for (key, row) in loaded {
-                requested.remove(&key);
+                if !requested.remove(&key) {
+                    continue;
+                }
                 if rows.by_key.insert(key, (row, generation)).is_none() {
                     rows.order.push_back(key);
                 }

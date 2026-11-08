@@ -1,91 +1,132 @@
-use model::{PlaylistRow, TrackRow, web};
-use rusqlite::{Connection, Row, ToSql};
+use model::{
+    AlbumKind, AlbumRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
+    catalog::{Album, Artist, Credit, Track},
+    web,
+};
+use rusqlite::{Connection, OptionalExtension, Row};
 
-use crate::{Error, Store};
-
-type Params = Vec<Box<dyn ToSql>>;
+use crate::{
+    Error, Store,
+    lists::{Entry, mark_synced, replace_list},
+};
 
 impl Store {
-    /// Adds or updates tracks and returns their keys, `None` for an entry without an ID or
-    /// that is a podcast episode.
-    pub async fn save_tracks(&self, tracks: Vec<web::Track>) -> Result<Vec<Option<u32>>, Error> {
+    /// Adds or updates tracks and returns their keys, in order.
+    pub async fn save_tracks(&self, tracks: Vec<Track>) -> Result<Vec<u32>, Error> {
+        self.call(move |conn| in_transaction(conn, |conn| upsert_tracks(conn, &tracks)))
+            .await
+    }
+
+    /// Adds or updates albums, not their tracks, and returns their keys, in order.
+    pub async fn save_albums(&self, albums: Vec<Album>) -> Result<Vec<u32>, Error> {
+        self.call(move |conn| in_transaction(conn, |conn| upsert_albums(conn, &albums)))
+            .await
+    }
+
+    /// Adds or updates playlists, which all have an ID, and returns their keys, in order.
+    pub async fn save_playlists(&self, playlists: Vec<web::Playlist>) -> Result<Vec<u32>, Error> {
         self.call(move |conn| {
-            upsert(
-                conn,
-                "INSERT INTO track (id, name, artists, album, duration_ms) \
-                 VALUES (?1, ?2, ?3, ?4, ?5) \
-                 ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
-                 artists = excluded.artists, album = excluded.album, \
-                 duration_ms = excluded.duration_ms RETURNING key",
-                &tracks,
-                |track| {
-                    let id = track.id.as_deref();
-                    let id = id.filter(|_| track.kind.as_deref() != Some("episode"))?;
-                    let album = track.album.as_ref().and_then(|album| album.name.as_deref());
-                    Some(vec![
-                        Box::new(id.to_owned()),
-                        Box::new(text(track.name.as_deref())),
-                        Box::new(names(&track.artists)),
-                        Box::new(text(album)),
-                        Box::new(track.duration_ms.unwrap_or(0)),
-                    ])
-                },
-            )
+            in_transaction(conn, |conn| {
+                let mut statement = conn.prepare_cached(
+                    "INSERT INTO playlist \
+                     (id, name, owner_id, owner, collaborative, tracks, snapshot) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+                     ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
+                     owner_id = excluded.owner_id, owner = excluded.owner, \
+                     collaborative = excluded.collaborative, tracks = excluded.tracks, \
+                     snapshot = excluded.snapshot RETURNING key",
+                )?;
+                (playlists.iter())
+                    .map(|playlist| {
+                        let owner = playlist.owner.as_ref();
+                        let tracks = playlist.items.as_ref().and_then(|items| items.total);
+                        let params = (
+                            text(playlist.id.as_deref()),
+                            text(playlist.name.as_deref()),
+                            text(owner.and_then(|owner| owner.id.as_deref())),
+                            text(owner.and_then(|owner| owner.display_name.as_deref())),
+                            playlist.collaborative.unwrap_or(false),
+                            tracks.unwrap_or(0),
+                            text(playlist.snapshot_id.as_deref()),
+                        );
+                        statement.query_row(params, |row| row.get(0))
+                    })
+                    .collect()
+            })
         })
         .await
     }
 
-    /// Adds or updates albums and returns their keys, `None` for an entry without an ID.
-    pub async fn save_albums(&self, albums: Vec<web::Album>) -> Result<Vec<Option<u32>>, Error> {
+    /// Stores an album with its tracks, in order.
+    pub async fn save_album(&self, album: Album) -> Result<(), Error> {
         self.call(move |conn| {
-            upsert(
-                conn,
-                "INSERT INTO album (id, name, artists) VALUES (?1, ?2, ?3) \
-                 ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
-                 artists = excluded.artists RETURNING key",
-                &albums,
-                |album| {
-                    Some(vec![
-                        Box::new(album.id.as_deref()?.to_owned()),
-                        Box::new(text(album.name.as_deref())),
-                        Box::new(names(&album.artists)),
-                    ])
-                },
-            )
+            in_transaction(conn, |conn| {
+                let key = upsert_albums(conn, std::slice::from_ref(&album))?[0];
+                let tracks = upsert_tracks(conn, &album.tracks)?;
+                replace_list(conn, List::Album(key), &entries(tracks))?;
+                mark_synced(conn, List::Album(key), None)
+            })
         })
         .await
     }
 
-    /// Adds or updates playlists and returns their keys, `None` for an entry without an ID.
-    pub async fn save_playlists(
+    /// Stores the artist with key `key`: its name, top tracks and albums.
+    pub async fn save_artist(&self, key: u32, artist: Artist) -> Result<(), Error> {
+        self.call(move |conn| {
+            in_transaction(conn, |conn| {
+                conn.prepare_cached("UPDATE artist SET name = ?2 WHERE key = ?1")?
+                    .execute((key, &*artist.name))?;
+                let top = upsert_tracks(conn, &artist.top_tracks)?;
+                replace_list(conn, List::ArtistTop(key), &entries(top))?;
+                let albums = upsert_albums(conn, &artist.albums)?;
+                replace_list(conn, List::ArtistAlbums(key), &entries(albums))?;
+                mark_synced(conn, List::ArtistTop(key), None)
+            })
+        })
+        .await
+    }
+
+    /// Stores the tracks of the playlist with key `key`, as of `snapshot`.
+    pub async fn save_playlist_tracks(
         &self,
-        playlists: Vec<web::Playlist>,
-    ) -> Result<Vec<Option<u32>>, Error> {
+        key: u32,
+        tracks: Vec<Track>,
+        snapshot: Box<str>,
+    ) -> Result<(), Error> {
         self.call(move |conn| {
-            upsert(
-                conn,
-                "INSERT INTO playlist \
-                 (id, name, owner_id, owner, collaborative, tracks, snapshot) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
-                 ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
-                 owner_id = excluded.owner_id, owner = excluded.owner, \
-                 collaborative = excluded.collaborative, tracks = excluded.tracks, \
-                 snapshot = excluded.snapshot RETURNING key",
-                &playlists,
-                |playlist| {
-                    let owner = playlist.owner.as_ref();
-                    let tracks = playlist.items.as_ref().and_then(|items| items.total);
-                    Some(vec![
-                        Box::new(playlist.id.as_deref()?.to_owned()),
-                        Box::new(text(playlist.name.as_deref())),
-                        Box::new(text(owner.and_then(|owner| owner.id.as_deref()))),
-                        Box::new(text(owner.and_then(|owner| owner.display_name.as_deref()))),
-                        Box::new(playlist.collaborative.unwrap_or(false)),
-                        Box::new(tracks.unwrap_or(0)),
-                        Box::new(text(playlist.snapshot_id.as_deref())),
-                    ])
-                },
-            )
+            in_transaction(conn, |conn| {
+                let tracks = upsert_tracks(conn, &tracks)?;
+                replace_list(conn, List::Playlist(key), &entries(tracks))?;
+                mark_synced(conn, List::Playlist(key), Some(&snapshot))
+            })
+        })
+        .await
+    }
+
+    /// The Spotify ID behind a key, if the key exists.
+    pub async fn id(&self, entity: Entity, key: u32) -> Result<Option<SpotifyId>, Error> {
+        let table = match entity {
+            Entity::Track => "track",
+            Entity::Album => "album",
+            Entity::Artist => "artist",
+            Entity::Playlist => "playlist",
+        };
+        let id: Option<String> = self
+            .call(move |conn| {
+                conn.prepare_cached(&format!("SELECT id FROM {table} WHERE key = ?1"))?
+                    .query_row([key], |row| row.get(0))
+                    .optional()
+            })
+            .await?;
+        Ok(id.and_then(|id| id.parse().ok()))
+    }
+
+    /// The name of the artist with key `key`, if the key exists.
+    pub async fn artist_name(&self, key: u32) -> Result<Option<Box<str>>, Error> {
+        self.call(move |conn| {
+            conn.prepare_cached("SELECT name FROM artist WHERE key = ?1")?
+                .query_row([key], |row| row.get::<_, String>(0).map(boxed))
+                .optional()
         })
         .await
     }
@@ -95,7 +136,7 @@ impl Store {
         self.call(move |conn| {
             rows(
                 conn,
-                "SELECT key, name, artists, duration_ms FROM track \
+                "SELECT key, name, artists, artist_key, duration_ms FROM track \
                  WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
@@ -103,7 +144,31 @@ impl Store {
                         key: row.get(0)?,
                         name: boxed(row.get(1)?),
                         artists: boxed(row.get(2)?),
-                        duration_ms: row.get(3)?,
+                        artist_key: row.get(3)?,
+                        duration_ms: row.get(4)?,
+                    })
+                },
+            )
+        })
+        .await
+    }
+
+    /// The rows of these albums, in no particular order.
+    pub async fn album_rows(&self, keys: Vec<u32>) -> Result<Vec<AlbumRow>, Error> {
+        self.call(move |conn| {
+            rows(
+                conn,
+                "SELECT key, name, artists, artist_key, year, kind FROM album \
+                 WHERE key IN (SELECT value FROM json_each(?1))",
+                &keys,
+                |row| {
+                    Ok(AlbumRow {
+                        key: row.get(0)?,
+                        name: boxed(row.get(1)?),
+                        artists: boxed(row.get(2)?),
+                        artist_key: row.get(3)?,
+                        year: row.get(4)?,
+                        kind: kind_from(row.get(5)?),
                     })
                 },
             )
@@ -135,30 +200,73 @@ impl Store {
     }
 }
 
-/// Runs the `INSERT … RETURNING key` statement `sql` for every item `params` gives
-/// parameters for, in one transaction.
-fn upsert<T>(
+fn in_transaction<T>(
     conn: &Connection,
-    sql: &str,
-    items: &[T],
-    params: impl Fn(&T) -> Option<Params>,
-) -> rusqlite::Result<Vec<Option<u32>>> {
+    work: impl FnOnce(&Connection) -> rusqlite::Result<T>,
+) -> rusqlite::Result<T> {
     let tx = conn.unchecked_transaction()?;
-    let keys = {
-        let mut statement = tx.prepare_cached(sql)?;
-        items
-            .iter()
-            .map(|item| {
-                params(item)
-                    .map(|params| {
-                        statement.query_row(rusqlite::params_from_iter(params), |row| row.get(0))
-                    })
-                    .transpose()
-            })
-            .collect::<rusqlite::Result<_>>()?
-    };
+    let result = work(&tx)?;
     tx.commit()?;
-    Ok(keys)
+    Ok(result)
+}
+
+fn upsert_tracks(conn: &Connection, tracks: &[Track]) -> rusqlite::Result<Vec<u32>> {
+    let mut statement = conn.prepare_cached(
+        "INSERT INTO track (id, name, artists, artist_key, duration_ms) \
+         VALUES (?1, ?2, ?3, ?4, ?5) \
+         ON CONFLICT (id) DO UPDATE SET name = excluded.name, artists = excluded.artists, \
+         artist_key = excluded.artist_key, duration_ms = excluded.duration_ms RETURNING key",
+    )?;
+    (tracks.iter())
+        .map(|track| {
+            let artist = first_artist(conn, &track.artists)?;
+            let params = (
+                track.id.to_string(),
+                &*track.name,
+                names(&track.artists),
+                artist,
+                track.duration_ms,
+            );
+            statement.query_row(params, |row| row.get(0))
+        })
+        .collect()
+}
+
+fn upsert_albums(conn: &Connection, albums: &[Album]) -> rusqlite::Result<Vec<u32>> {
+    let mut statement = conn.prepare_cached(
+        "INSERT INTO album (id, name, artists, artist_key, year, kind) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+         ON CONFLICT (id) DO UPDATE SET name = excluded.name, artists = excluded.artists, \
+         artist_key = excluded.artist_key, year = excluded.year, kind = excluded.kind \
+         RETURNING key",
+    )?;
+    (albums.iter())
+        .map(|album| {
+            let artist = first_artist(conn, &album.artists)?;
+            let params = (
+                album.id.to_string(),
+                &*album.name,
+                names(&album.artists),
+                artist,
+                album.year,
+                kind_to(album.kind),
+            );
+            statement.query_row(params, |row| row.get(0))
+        })
+        .collect()
+}
+
+/// Adds or renames the first credited artist and returns its key.
+fn first_artist(conn: &Connection, artists: &[Credit]) -> rusqlite::Result<Option<u32>> {
+    let Some(artist) = artists.first() else {
+        return Ok(None);
+    };
+    conn.prepare_cached(
+        "INSERT INTO artist (id, name) VALUES (?1, ?2) \
+         ON CONFLICT (id) DO UPDATE SET name = excluded.name RETURNING key",
+    )?
+    .query_row((artist.id.to_string(), &*artist.name), |row| row.get(0))
+    .map(Some)
 }
 
 /// Runs `sql`, whose `?1` is the JSON array of `keys`, and maps every row it returns.
@@ -174,11 +282,34 @@ fn rows<T>(
         .collect()
 }
 
+fn entries(keys: Vec<u32>) -> Vec<Entry> {
+    (keys.into_iter())
+        .map(|key| Entry {
+            key,
+            added_at: None,
+        })
+        .collect()
+}
+
+fn kind_to(kind: AlbumKind) -> u8 {
+    match kind {
+        AlbumKind::Album => 0,
+        AlbumKind::Single => 1,
+        AlbumKind::Compilation => 2,
+    }
+}
+
+fn kind_from(kind: u8) -> AlbumKind {
+    match kind {
+        1 => AlbumKind::Single,
+        2 => AlbumKind::Compilation,
+        _ => AlbumKind::Album,
+    }
+}
+
 /// Artist names as one line, the way rows show them.
-fn names(artists: &[web::Named]) -> String {
-    let listed: Vec<&str> = (artists.iter())
-        .filter_map(|artist| artist.name.as_deref())
-        .collect();
+fn names(artists: &[Credit]) -> String {
+    let listed: Vec<&str> = artists.iter().map(|artist| &*artist.name).collect();
     listed.join(", ")
 }
 

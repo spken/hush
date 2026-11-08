@@ -1,7 +1,10 @@
 use std::{fmt, path::PathBuf, sync::Arc};
 
 use arc_swap::ArcSwap;
-use librespot_connect::{ConnectConfig, Spirc};
+use librespot_connect::{
+    ConnectConfig, LoadContextOptions, LoadRequest, LoadRequestOptions, Options, PlayingTrack,
+    Spirc,
+};
 use librespot_core::{
     Session, SessionConfig, authentication::Credentials, cache::Cache, config::DeviceType,
 };
@@ -10,7 +13,7 @@ use librespot_playback::{
     mixer::{Mixer, MixerConfig, NoOpVolume, softmixer::SoftMixer},
     player::{Player, PlayerEventChannel},
 };
-use model::Event;
+use model::{Context, Event, TrackId};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -26,6 +29,7 @@ const NAME: &str = "Hush";
 /// control.
 pub struct Device {
     spirc: Spirc,
+    session: Session,
     task: JoinHandle<()>,
     eq: Arc<ArcSwap<Coefficients>>,
 }
@@ -78,9 +82,20 @@ impl Device {
             device_type: DeviceType::Computer,
             ..ConnectConfig::default()
         };
-        let (spirc, run) = Spirc::new(connect, session, credentials, player, mixer).await?;
+        let (spirc, run) = Spirc::new(connect, session.clone(), credentials, player, mixer).await?;
         let task = tokio::spawn(run);
-        Ok((Self { spirc, task, eq }, events))
+        let device = Self {
+            spirc,
+            session,
+            task,
+            eq,
+        };
+        Ok((device, events))
+    }
+
+    /// The device's logged-in librespot session, for metadata lookups.
+    pub fn session(&self) -> Session {
+        self.session.clone()
     }
 
     /// Sets the equalizer: a preamp and one gain per band in `EQ_BANDS_HZ`, all in dB.
@@ -88,6 +103,41 @@ impl Device {
     pub fn set_eq(&self, preamp_db: f64, gains_db: &[f64; EQ_BANDS_HZ.len()]) {
         self.eq
             .store(Arc::new(eq::coefficients(preamp_db, gains_db)));
+    }
+
+    /// Makes Hush the active Spotify Connect device, so it can play. Does nothing while it
+    /// already is.
+    pub fn activate(&self) -> Result<(), Error> {
+        Ok(self.spirc.activate()?)
+    }
+
+    /// Plays `context` on Hush, which must be active: from the track `start`, or from its
+    /// top; shuffled or in order.
+    pub fn play(
+        &self,
+        context: Context,
+        start: Option<TrackId>,
+        shuffle: bool,
+    ) -> Result<(), Error> {
+        let uri = match context {
+            Context::LikedSongs => format!("spotify:user:{}:collection", self.session.username()),
+            Context::Album(id) => format!("spotify:album:{id}"),
+            Context::Artist(id) => format!("spotify:artist:{id}"),
+            Context::Playlist(id) => format!("spotify:playlist:{id}"),
+        };
+        let options = LoadRequestOptions {
+            start_playing: true,
+            seek_to: 0,
+            context_options: Some(LoadContextOptions::Options(Options {
+                shuffle,
+                ..Options::default()
+            })),
+            playing_track: start
+                .map(|TrackId(id)| PlayingTrack::Uri(format!("spotify:track:{id}"))),
+        };
+        Ok(self
+            .spirc
+            .load(LoadRequest::from_context_uri(uri, options))?)
     }
 
     /// Pauses when playing, resumes when paused. Like every transport control, it does

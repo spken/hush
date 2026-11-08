@@ -6,14 +6,27 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+kit = { workspace = true }
+librespot-core = { workspace = true }
+librespot-protocol = { workspace = true }
 model = { workspace = true }
+protobuf = { workspace = true }
 serde = { workspace = true }
 store = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 webapi = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+auth = { workspace = true }
+dotenvy = { workspace = true }
+playback = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing-subscriber = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,0 +1,103 @@
+import { Theme } from "../theme.slint";
+import { Icons } from "icon.slint";
+import { Artwork } from "artwork.slint";
+import { PillButton } from "pill-button.slint";
+
+// The top of a list page: art beside a small label, a poster-size title, a credit line
+// whose `link` part opens what it names, and the Play and Shuffle pills.
+export component PosterHeader inherits HorizontalLayout {
+    in property <string> glyph: Icons.note;
+    in property <bool> round;
+    in property <string> label;
+    in property <string> title;
+    in property <string> link;
+    in property <string> detail;
+    in property <bool> playable;
+    callback open-link();
+    // Plays from the top; shuffled when true.
+    callback play(bool);
+
+    spacing: Theme.space-6;
+
+    Artwork {
+        size: Theme.art-header;
+        large: true;
+        round: root.round;
+        glyph: root.glyph;
+    }
+
+    VerticalLayout {
+        alignment: end;
+        spacing: Theme.space-2;
+
+        if root.label != "": Text {
+            text: root.label;
+            font-size: Theme.text-caption;
+            font-weight: Theme.weight-semibold;
+            letter-spacing: Theme.tracking-label;
+            color: Theme.text-secondary;
+        }
+
+        Text {
+            text: root.title;
+            overflow: elide;
+            font-family: Theme.font-display;
+            font-size: Theme.text-display;
+            font-weight: Theme.weight-bold;
+            letter-spacing: Theme.tracking-display;
+            color: Theme.text;
+        }
+
+        if root.link != "" || root.detail != "": HorizontalLayout {
+            alignment: start;
+            spacing: Theme.space-2;
+
+            if root.link != "": Text {
+                text: root.link;
+                overflow: elide;
+                font-size: Theme.text-body;
+                font-weight: Theme.weight-semibold;
+                color: Theme.text;
+                accessible-role: button;
+                accessible-action-default => { root.open-link(); }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.open-link(); }
+                }
+            }
+
+            if root.link != "" && root.detail != "": Text {
+                text: "·";
+                font-size: Theme.text-body;
+                color: Theme.text-tertiary;
+            }
+
+            Text {
+                text: root.detail;
+                overflow: elide;
+                font-size: Theme.text-body;
+                color: Theme.text-secondary;
+            }
+        }
+
+        if root.playable: HorizontalLayout {
+            padding-top: Theme.space-3;
+            spacing: Theme.space-2;
+            alignment: start;
+
+            PillButton {
+                primary: true;
+                icon: Icons.play;
+                text: "Play";
+                clicked => { root.play(false); }
+            }
+
+            PillButton {
+                icon: Icons.shuffle;
+                text: "Shuffle";
+                clicked => { root.play(true); }
+            }
+        }
+    }
+}

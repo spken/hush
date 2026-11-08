@@ -1,19 +1,16 @@
 import { ListView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Library } from "library.slint";
+import { Nav } from "catalog.slint";
 import { Icons } from "components/icon.slint";
-import { Artwork } from "components/artwork.slint";
 import { PillButton } from "components/pill-button.slint";
 import { ListEntry } from "components/list-entry.slint";
+import { PosterHeader } from "components/poster-header.slint";
 import { SongRow } from "components/song-row.slint";
 
-// The library: Liked Songs and the playlists on the left, the open one's songs beside
-// them, set under a poster header.
+// The library: Liked Songs, the saved albums and the playlists on the left, the open
+// one's songs or albums beside them, set under a poster header.
 export component LibraryPage inherits VerticalLayout {
-    // A newly opened list starts at its top.
-    property <int> open-key: Library.open-key;
-    changed open-key => { songs.content-y = 0; }
-
     padding-top: Theme.space-6;
     padding-left: Theme.space-7;
     padding-right: Theme.space-7;
@@ -66,6 +63,14 @@ export component LibraryPage inherits VerticalLayout {
                 clicked => { Library.open(0); }
             }
 
+            ListEntry {
+                title: "Albums";
+                detail: Library.albums-detail;
+                glyph: Icons.album;
+                selected: Library.open-key == -1;
+                clicked => { Library.open(-1); }
+            }
+
             ListView {
                 for playlist in Library.playlists: ListEntry {
                     title: playlist.name;
@@ -79,48 +84,41 @@ export component LibraryPage inherits VerticalLayout {
         VerticalLayout {
             spacing: Theme.space-5;
 
-            HorizontalLayout {
-                spacing: Theme.space-6;
-
-                Artwork {
-                    size: Theme.art-header;
-                    large: true;
-                    glyph: Library.open-key == 0 ? Icons.heart : Icons.note;
-                }
-
-                VerticalLayout {
-                    alignment: end;
-                    spacing: Theme.space-2;
-
-                    Text {
-                        text: Library.open-title;
-                        overflow: elide;
-                        font-family: Theme.font-display;
-                        font-size: Theme.text-display;
-                        font-weight: Theme.weight-bold;
-                        letter-spacing: Theme.tracking-display;
-                        color: Theme.text;
-                    }
-
-                    Text {
-                        text: Library.open-detail;
-                        font-size: Theme.text-body;
-                        color: Theme.text-secondary;
-                    }
-                }
+            PosterHeader {
+                glyph: Library.open-key == 0 ? Icons.heart : Library.open-key == -1 ? Icons.album : Icons.note;
+                title: Library.open-title;
+                detail: Library.open-detail;
+                playable: Library.open-key != -1 && Library.tracks.length > 0;
+                play(shuffle) => { Library.play(Library.open-key, 0, shuffle); }
             }
 
-            if Library.tracks.length == 0: Text {
+            if Library.open-key == -1 ? Library.albums.length == 0 : Library.tracks.length == 0: Text {
                 text: Library.open-empty;
                 wrap: word-wrap;
                 font-size: Theme.text-body;
                 color: Theme.text-secondary;
             }
 
-            songs := ListView {
+            if Library.open-key == -1: ListView {
+                vertical-stretch: 1;
+                for album in Library.albums: ListEntry {
+                    title: album.name;
+                    detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
+                    glyph: Icons.album;
+                    clicked => { Nav.open-album(album.key); }
+                }
+            }
+
+            if Library.open-key != -1: ListView {
+                // A newly opened list starts at its top.
+                property <int> open-key: Library.open-key;
+                changed open-key => { self.content-y = 0; }
+
                 vertical-stretch: 1;
                 for track in Library.tracks: SongRow {
                     track: track;
+                    play => { Library.play(Library.open-key, track.key, false); }
+                    open-artist(key) => { Nav.open-artist(key); }
                 }
             }
         }

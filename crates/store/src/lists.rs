@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use model::List;
-use rusqlite::{OptionalExtension, Transaction};
+use rusqlite::{Connection, OptionalExtension};
 
 use crate::{Error, Store, db::unix_now};
 
@@ -22,7 +22,7 @@ pub struct Cursor {
     pub snapshot: Option<Box<str>>,
 }
 
-/// A playlist whose stored tracks are not from its current snapshot.
+/// A playlist whose stored tracks are missing or not from its current snapshot.
 #[derive(Debug)]
 pub struct StalePlaylist {
     pub key: u32,
@@ -30,13 +30,18 @@ pub struct StalePlaylist {
     pub snapshot: Box<str>,
 }
 
-/// The `list_id` a list is stored under; a playlist's tracks use its key.
+/// The `list_id` a list is stored under. A playlist's tracks use its key; the lists of
+/// other entities add their key to a multiple of 2^32, which no key reaches.
 fn list_id(list: List) -> i64 {
+    const SPAN: i64 = 1 << 32;
     match list {
         List::LikedSongs => -1,
         List::SavedAlbums => -2,
         List::Playlists => -3,
         List::Playlist(key) => key.into(),
+        List::Album(key) => SPAN + i64::from(key),
+        List::ArtistTop(key) => 2 * SPAN + i64::from(key),
+        List::ArtistAlbums(key) => 3 * SPAN + i64::from(key),
     }
 }
 
@@ -138,13 +143,19 @@ impl Store {
 
     /// Records that a list was synced just now, for a playlist from `snapshot`.
     pub async fn set_cursor(&self, list: List, snapshot: Option<Box<str>>) -> Result<(), Error> {
+        self.call(move |conn| mark_synced(conn, list, snapshot.as_deref()))
+            .await
+    }
+
+    /// The playlist with key `key`, if its stored tracks are missing or older than its
+    /// snapshot.
+    pub async fn stale_playlist(&self, key: u32) -> Result<Option<StalePlaylist>, Error> {
         self.call(move |conn| {
             conn.prepare_cached(
-                "INSERT OR REPLACE INTO sync_cursor (list_id, synced_at, snapshot) \
-                 VALUES (?1, ?2, ?3)",
+                "SELECT p.key, p.id, p.snapshot FROM playlist p                  LEFT JOIN sync_cursor c ON c.list_id = p.key                  WHERE p.key = ?1 AND c.snapshot IS NOT p.snapshot",
             )?
-            .execute((list_id(list), unix_now(), snapshot.as_deref()))?;
-            Ok(())
+            .query_row([key], stale)
+            .optional()
         })
         .await
     }
@@ -161,21 +172,47 @@ impl Store {
                  AND c.snapshot IS NOT p.snapshot \
                  ORDER BY l.pos",
             )?
-            .query_map((list_id(List::Playlists), &*user_id), |row| {
-                Ok(StalePlaylist {
-                    key: row.get(0)?,
-                    id: row.get::<_, String>(1)?.into_boxed_str(),
-                    snapshot: row.get::<_, String>(2)?.into_boxed_str(),
-                })
-            })?
+            .query_map((list_id(List::Playlists), &*user_id), stale)?
             .collect()
         })
         .await
     }
 }
 
-fn insert(tx: &Transaction<'_>, list: List, at: u32, entries: &[Entry]) -> rusqlite::Result<()> {
-    let mut insert = tx.prepare_cached(
+fn stale(row: &rusqlite::Row<'_>) -> rusqlite::Result<StalePlaylist> {
+    Ok(StalePlaylist {
+        key: row.get(0)?,
+        id: row.get::<_, String>(1)?.into_boxed_str(),
+        snapshot: row.get::<_, String>(2)?.into_boxed_str(),
+    })
+}
+
+/// Records that a list was synced just now, for a playlist from `snapshot`.
+pub(crate) fn mark_synced(
+    conn: &Connection,
+    list: List,
+    snapshot: Option<&str>,
+) -> rusqlite::Result<()> {
+    conn.prepare_cached(
+        "INSERT OR REPLACE INTO sync_cursor (list_id, synced_at, snapshot) VALUES (?1, ?2, ?3)",
+    )?
+    .execute((list_id(list), unix_now(), snapshot))?;
+    Ok(())
+}
+
+/// Makes `entries` the whole of a list.
+pub(crate) fn replace_list(
+    conn: &Connection,
+    list: List,
+    entries: &[Entry],
+) -> rusqlite::Result<()> {
+    conn.prepare_cached("DELETE FROM list_item WHERE list_id = ?1")?
+        .execute([list_id(list)])?;
+    insert(conn, list, 0, entries)
+}
+
+fn insert(conn: &Connection, list: List, at: u32, entries: &[Entry]) -> rusqlite::Result<()> {
+    let mut insert = conn.prepare_cached(
         "INSERT INTO list_item (list_id, pos, entity_key, added_at) VALUES (?1, ?2, ?3, ?4)",
     )?;
     for (pos, entry) in (at..).zip(entries) {

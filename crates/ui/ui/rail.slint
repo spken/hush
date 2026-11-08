@@ -2,13 +2,11 @@ import { Theme } from "theme.slint";
 import { Player, Connection } from "player.slint";
 import { Icons } from "components/icon.slint";
 import { IconButton } from "components/icon-button.slint";
-
-export enum Page { now-playing, library }
+import { Nav, Page } from "catalog.slint";
 
 // The slim navigation rail on the left edge, with the Spotify Connect status at its foot.
+// Album and artist pages belong to the library.
 export component Rail inherits VerticalLayout {
-    in-out property <Page> page;
-
     width: Theme.rail-width;
     padding-top: Theme.space-5;
     padding-bottom: Theme.space-5;
@@ -21,8 +19,8 @@ export component Rail inherits VerticalLayout {
             label: "Now Playing";
             size: Theme.button-md;
             icon-size: Theme.icon-sm;
-            selected: root.page == Page.now-playing;
-            clicked => { root.page = Page.now-playing; }
+            selected: Nav.page == Page.now-playing;
+            clicked => { Nav.go(Page.now-playing); }
         }
     }
 
@@ -33,8 +31,8 @@ export component Rail inherits VerticalLayout {
             label: "Library";
             size: Theme.button-md;
             icon-size: Theme.icon-sm;
-            selected: root.page == Page.library;
-            clicked => { root.page = Page.library; }
+            selected: Nav.page != Page.now-playing;
+            clicked => { Nav.go(Page.library); }
         }
     }
 

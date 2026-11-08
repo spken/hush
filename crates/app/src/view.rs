@@ -1,17 +1,30 @@
 //! The bridge between the Controller and the window: view-model updates in one direction,
 //! UI callbacks in the other.
 
+mod catalog;
 mod library;
 
 use std::{fmt, time::Instant};
 
-use model::{Anchor, Command, Track};
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use model::{Anchor, Command, Entity, List, Track};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::watch;
-use ui::{Connection, EndpointRequests, Format, MainWindow, Player};
+use ui::{Connection, EndpointRequests, Format, KeyListModel, MainWindow, Player};
 use webapi::Metrics;
 
 use crate::controller;
+
+pub(crate) use self::library::Open;
+
+/// Whether a list whose entries are not all stored is being fetched.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Loading {
+    /// Nothing is missing.
+    Done,
+    Pending,
+    /// Every catalog source failed.
+    Failed,
+}
 
 /// The Controller's handle on the window; every update runs on the UI thread.
 pub(crate) struct View(slint::Weak<MainWindow>);
@@ -130,6 +143,7 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
         .global::<Format>()
         .on_clock(|position_ms| clock(position_ms.max(0).unsigned_abs()).into());
     library::bind(window, controller);
+    catalog::bind(window, controller);
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {
@@ -165,6 +179,61 @@ fn sample(window: &MainWindow, web_api: Option<&Metrics>) {
         })
         .collect();
     debug.set_this_minute(ModelRc::new(VecModel::from(this_minute)));
+}
+
+/// A list model callback that asks the Controller for the rows of `entity` it needs.
+fn load(controller: &controller::Handle, entity: Entity) -> impl Fn(Vec<u32>) + 'static {
+    let controller = controller.clone();
+    move |keys| controller.send(Command::RowsVisible { entity, keys })
+}
+
+/// A `play(list key, start key, shuffle)` callback for the list `list` maps a key to; a
+/// start key of 0 plays from the top.
+fn play(
+    controller: &controller::Handle,
+    list: fn(i32) -> List,
+) -> impl Fn(i32, i32, bool) + 'static {
+    let controller = controller.clone();
+    move |key, start, shuffle| {
+        controller.send(Command::Play {
+            list: list(key),
+            start: u32::try_from(start).ok().filter(|&start| start != 0),
+            shuffle,
+        });
+    }
+}
+
+/// Runs `change` on the key list behind `model`, which `bind` installed.
+fn with_list<T: Clone + Default + 'static>(
+    model: &ModelRc<T>,
+    change: impl FnOnce(&KeyListModel<T>),
+) {
+    if let Some(list) = model.as_any().downcast_ref::<KeyListModel<T>>() {
+        change(list);
+    } else {
+        tracing::error!("a list has no key list model");
+    }
+}
+
+/// "1 song", "1,234 songs".
+fn count(number: u32, one: &str, many: &str) -> String {
+    match number {
+        1 => format!("1 {one}"),
+        number => format!("{} {many}", thousands(number)),
+    }
+}
+
+/// A number with thousands separators.
+fn thousands(number: u32) -> String {
+    let digits = number.to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
 }
 
 /// A position or length in milliseconds as "m:ss".

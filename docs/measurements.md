@@ -99,3 +99,19 @@ playlists, 4 for this account. No owned playlist was refetched (snapshots matche
 owned playlists store a few tracks fewer than Spotify counts: local files and unavailable
 entries without an ID are skipped. Still to check by hand: Liked Songs scrolling at 144 fps
 and RSS with the list open and scrolled.
+
+## M6 — Catalog via librespot (Nov 8, 2026)
+
+`cargo run -p catalog --example m6`: 5 artist pages (Radiohead, Daft Punk, Kendrick Lamar,
+Miles Davis, Fleetwood Mac) and 4 albums from each, on scratch databases, through
+`CatalogService`.
+
+| Catalog | Pages | Web API requests | Time |
+| --- | --- | --- | --- |
+| spclient, Web API as fallback | 25 | 0 | 1.9 s after session login |
+| Web API only (spclient off) | 25 | 49 | 68 s (the gateway's budget sets the pace) |
+
+Play on OK Computer started "Airbag" on Hush, and Play on Today's Top Hits started its
+first track, both with no other Spotify app open and 0 Web API requests. Still to check
+by hand in the app: browsing the same pages from the UI, and RSS with album and artist
+pages open.

@@ -1,17 +1,19 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Player, Format, Debug, Connection, EndpointRequests } from "player.slint";
-import { Library, TrackRow, PlaylistRow } from "library.slint";
-import { Rail, Page } from "rail.slint";
+import { Library, TrackRow, AlbumRow, PlaylistRow } from "library.slint";
+import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
+import { Rail } from "rail.slint";
 import { Controls } from "controls.slint";
 import { NowPlayingPage } from "now-playing-page.slint";
 import { LibraryPage } from "library-page.slint";
+import { AlbumPage } from "album-page.slint";
+import { ArtistPage } from "artist-page.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, PlaylistRow }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView }
 
 export component MainWindow inherits Window {
-    property <Page> page;
     property <bool> immersive;
     property <bool> debug-open;
 
@@ -62,18 +64,24 @@ export component MainWindow inherits Window {
         }
 
         HorizontalLayout {
-            if !root.immersive: Rail {
-                page <=> root.page;
-            }
+            if !root.immersive: Rail {}
 
             VerticalLayout {
-                if root.page == Page.now-playing: NowPlayingPage {
+                if Nav.page == Page.now-playing: NowPlayingPage {
                     vertical-stretch: 1;
                     full-screen: root.immersive;
                     toggle-full-screen => { root.immersive = !root.immersive; }
                 }
 
-                if root.page == Page.library: LibraryPage {
+                if Nav.page == Page.library: LibraryPage {
+                    vertical-stretch: 1;
+                }
+
+                if Nav.page == Page.album: AlbumPage {
+                    vertical-stretch: 1;
+                }
+
+                if Nav.page == Page.artist: ArtistPage {
                     vertical-stretch: 1;
                 }
 

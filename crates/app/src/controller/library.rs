@@ -1,9 +1,10 @@
 //! The Controller's library side: sync scheduling and what the library page shows.
 
-use model::{Entity, Event, List};
+use model::{Entity, Event, List, Route};
 use tokio_util::sync::CancellationToken;
 
 use super::Controller;
+use crate::view::{Loading, Open};
 
 impl Controller {
     /// Starts a library sync unless one is running; without `force` it only syncs when the
@@ -36,19 +37,30 @@ impl Controller {
     pub(super) async fn show_library(&mut self) {
         report(self.show_playlists().await);
         report(self.show_liked().await);
+        report(self.show_saved_albums().await);
         report(self.show_open().await);
     }
 
+    /// Shows a list that changed in the database wherever it is on show.
     pub(super) async fn list_changed(&mut self, list: List) -> Result<(), store::Error> {
         match list {
             List::Playlists => self.show_playlists().await?,
             List::LikedSongs => self.show_liked().await?,
-            List::SavedAlbums | List::Playlist(_) => {}
+            List::SavedAlbums => self.show_saved_albums().await?,
+            List::Playlist(_) | List::Album(_) | List::ArtistTop(_) | List::ArtistAlbums(_) => {}
         }
         // A playlist's header comes from the playlist list.
         let header_changed = list == List::Playlists && matches!(self.open, List::Playlist(_));
         if list == self.open || header_changed {
             self.show_open().await?;
+        }
+        let on_show = match (list, self.route) {
+            (List::Album(key), Route::Album(open))
+            | (List::ArtistTop(key) | List::ArtistAlbums(key), Route::Artist(open)) => key == open,
+            _ => false,
+        };
+        if on_show {
+            self.show_page().await?;
         }
         Ok(())
     }
@@ -65,28 +77,62 @@ impl Controller {
         Ok(())
     }
 
-    /// Shows the open list's header and tracks; Liked Songs when the open playlist is gone.
-    pub(super) async fn show_open(&mut self) -> Result<(), store::Error> {
-        let playlist = match self.open {
-            List::Playlist(key) => self.store.playlist_rows(vec![key]).await?.pop(),
-            List::LikedSongs | List::SavedAlbums | List::Playlists => None,
-        };
-        if playlist.is_none() {
-            self.open = List::LikedSongs;
-        }
-        let keys = self.store.list_keys(self.open).await?;
-        self.view.open(playlist, keys);
+    async fn show_saved_albums(&self) -> Result<(), store::Error> {
+        self.view
+            .saved_albums(self.store.list_keys(List::SavedAlbums).await?);
         Ok(())
+    }
+
+    /// Shows the open list's header and entries; Liked Songs when the open playlist is gone.
+    pub(super) async fn show_open(&mut self) -> Result<(), store::Error> {
+        let open = match self.open {
+            List::Playlist(key) => {
+                (self.store.playlist_rows(vec![key]).await?.pop()).map(Open::Playlist)
+            }
+            List::SavedAlbums => Some(Open::SavedAlbums),
+            List::LikedSongs
+            | List::Playlists
+            | List::Album(_)
+            | List::ArtistTop(_)
+            | List::ArtistAlbums(_) => None,
+        };
+        let open = open.unwrap_or_else(|| {
+            self.open = List::LikedSongs;
+            Open::LikedSongs
+        });
+        let keys = self.store.list_keys(self.open).await?;
+        self.view.open(open, keys, self.loading(self.open));
+        Ok(())
+    }
+
+    /// Fetches the open list when it is a playlist whose tracks may not be stored.
+    pub(super) fn fetch_open(&mut self) {
+        if let List::Playlist(_) = self.open {
+            self.fetch(self.open);
+        }
     }
 
     pub(super) async fn rows(&self, entity: Entity, keys: Vec<u32>) -> Result<(), store::Error> {
         match entity {
             Entity::Track => self.view.track_rows(self.store.track_rows(keys).await?),
+            Entity::Album => self.view.album_rows(self.store.album_rows(keys).await?),
             Entity::Playlist => self
                 .view
                 .playlist_rows(self.store.playlist_rows(keys).await?),
+            // No list shows artists as rows.
+            Entity::Artist => {}
         }
         Ok(())
+    }
+
+    /// Whether `list` may still be on its way from the catalog.
+    pub(super) fn loading(&self, list: List) -> Loading {
+        match (self.fetches.get(&list), &self.catalog) {
+            (Some(&loading), _) => loading,
+            (None, super::Catalog::Starting) => Loading::Pending,
+            (None, super::Catalog::Off) => Loading::Failed,
+            (None, super::Catalog::Ready(_)) => Loading::Done,
+        }
     }
 }
 

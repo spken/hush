@@ -1,0 +1,57 @@
+import { Theme } from "../theme.slint";
+import { AlbumRow } from "../library.slint";
+import { Icons } from "icon.slint";
+import { Artwork } from "artwork.slint";
+
+// An album in a grid: its cover with the name and detail beneath. The cover brightens
+// under the pointer.
+export component AlbumTile inherits VerticalLayout {
+    in property <AlbumRow> album;
+    callback clicked();
+
+    spacing: Theme.space-2;
+    accessible-role: button;
+    accessible-label: root.album.name;
+    accessible-action-default => { root.clicked(); }
+
+    Artwork {
+        size: root.width;
+        large: true;
+        glyph: Icons.album;
+
+        Rectangle {
+            border-radius: parent.border-radius;
+            background: touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
+            animate background { duration: Theme.duration-fast; easing: ease-out; }
+        }
+
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.clicked(); }
+        }
+    }
+
+    VerticalLayout {
+        height: Theme.tile-caption;
+        spacing: Theme.space-1;
+
+        Text {
+            text: root.album.name;
+            overflow: elide;
+            font-size: Theme.text-body;
+            font-weight: Theme.weight-semibold;
+            color: Theme.text;
+        }
+
+        Text {
+            text: root.album.year == "" ? root.album.kind : root.album.year + " · " + root.album.kind;
+            overflow: elide;
+            font-size: Theme.text-small;
+            color: Theme.text-secondary;
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+}

@@ -2,9 +2,23 @@
 
 // A track in a list, as its row shows it.
 export struct TrackRow {
+    key: int,
     title: string,
     artists: string,
+    // The first artist, or 0 when unknown.
+    artist-key: int,
     duration: string,
+}
+
+// An album in a list or grid.
+export struct AlbumRow {
+    key: int,
+    name: string,
+    artists: string,
+    // "" when unknown.
+    year: string,
+    // "Album", "Single" or "Compilation".
+    kind: string,
 }
 
 // A playlist in the library list.
@@ -17,17 +31,22 @@ export struct PlaylistRow {
 export global Library {
     in property <[PlaylistRow]> playlists;
     in property <string> liked-detail;
-    // The playlist whose tracks are open, or 0 for Liked Songs.
+    in property <string> albums-detail;
+    // What the library page shows: 0 for Liked Songs, -1 for the saved albums, else the
+    // key of a playlist.
     in property <int> open-key;
     in property <string> open-title;
     in property <string> open-detail;
-    // What to say while the open list has no tracks.
+    // What to say while the open list is empty.
     in property <string> open-empty;
     in property <[TrackRow]> tracks;
+    in property <[AlbumRow]> albums;
     in property <bool> syncing;
     in property <string> sync-status;
 
-    // Opens the playlist with this key, or Liked Songs for 0.
+    // Shows Liked Songs, the saved albums or a playlist, by `open-key`.
     callback open(int);
+    // Plays the open list from the track with this key, or 0 for its top; shuffled or not.
+    callback play(int, int, bool);
     callback sync();
 }

@@ -1,0 +1,100 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Nav, ArtistView } from "catalog.slint";
+import { Icons } from "components/icon.slint";
+import { IconButton } from "components/icon-button.slint";
+import { PosterHeader } from "components/poster-header.slint";
+import { SongRow } from "components/song-row.slint";
+import { AlbumTile } from "components/album-tile.slint";
+
+component SectionTitle inherits Text {
+    font-family: Theme.font-display;
+    font-size: Theme.text-subtitle;
+    font-weight: Theme.weight-bold;
+    color: Theme.text;
+}
+
+// An artist: portrait and name, Play and Shuffle, the most played tracks, then every
+// album and single as a grid of covers.
+export component ArtistPage inherits VerticalLayout {
+    // A newly opened artist starts at the top.
+    property <int> key: ArtistView.key;
+    changed key => { scroll.content-y = 0; }
+
+    padding-top: Theme.space-5;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-5;
+
+    HorizontalLayout {
+        alignment: start;
+
+        IconButton {
+            icon: Icons.back;
+            label: "Back";
+            enabled: Nav.can-back;
+            clicked => { Nav.back(); }
+        }
+    }
+
+    scroll := ScrollView {
+        vertical-stretch: 1;
+        content-width: self.visible-width;
+
+        VerticalLayout {
+            width: scroll.visible-width;
+            padding-bottom: Theme.space-6;
+            spacing: Theme.space-5;
+
+            PosterHeader {
+                glyph: Icons.artist;
+                round: true;
+                label: "ARTIST";
+                title: ArtistView.name;
+                playable: ArtistView.top-tracks.length > 0;
+                play(shuffle) => { ArtistView.play(ArtistView.key, 0, shuffle); }
+            }
+
+            if ArtistView.status != "": Text {
+                text: ArtistView.status;
+                wrap: word-wrap;
+                font-size: Theme.text-body;
+                color: Theme.text-secondary;
+            }
+
+            if ArtistView.top-tracks.length > 0: SectionTitle {
+                text: "Popular";
+            }
+
+            VerticalLayout {
+                for track[index] in ArtistView.top-tracks: SongRow {
+                    track: track;
+                    number: index + 1;
+                    play => { ArtistView.play(ArtistView.key, track.key, false); }
+                    open-artist(key) => { Nav.open-artist(key); }
+                }
+            }
+
+            if ArtistView.albums.length > 0: SectionTitle {
+                text: "Albums and Singles";
+            }
+
+            grid := Rectangle {
+                property <length> gap: Theme.space-5;
+                property <int> columns: max(1, floor((self.width + self.gap) / (Theme.art-tile + self.gap)));
+                property <length> cell: (self.width - (self.columns - 1) * self.gap) / self.columns;
+                property <length> row-height: self.cell + Theme.space-2 + Theme.tile-caption + Theme.space-3;
+
+                height: ceil(ArtistView.albums.length / self.columns) * self.row-height;
+
+                for album[index] in ArtistView.albums: AlbumTile {
+                    x: mod(index, grid.columns) * (grid.cell + grid.gap);
+                    y: floor(index / grid.columns) * grid.row-height;
+                    width: grid.cell;
+                    album: album;
+                    clicked => { Nav.open-album(album.key); }
+                }
+            }
+        }
+    }
+}

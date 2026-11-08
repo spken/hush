@@ -30,6 +30,8 @@ fn main() -> anyhow::Result<()> {
         .ok()
         .filter(|id| !id.is_empty())
         .map(String::into_boxed_str);
+    // `HUSH_CATALOG=web-api` leaves album, artist and playlist pages to the Web API.
+    let spclient = env::var("HUSH_CATALOG").map_or(true, |source| source != "web-api");
     let cache_dir =
         PathBuf::from(env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?).join("Hush");
     fs::create_dir_all(&cache_dir).context("data folder")?;
@@ -56,6 +58,7 @@ fn main() -> anyhow::Result<()> {
     let deps = controller::Deps {
         cache_dir,
         client_id,
+        spclient,
         http,
         store,
         view: view::View::new(&window),

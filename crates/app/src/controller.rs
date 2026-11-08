@@ -1,9 +1,11 @@
-//! The Controller: the single owner of app state. It turns UI commands into device and
-//! library calls, and playback and library events into view updates.
+//! The Controller: the single owner of app state. It turns UI commands into device,
+//! library and catalog calls, and playback and service events into view updates.
 
 mod library;
+mod pages;
 
 use std::{
+    collections::HashMap,
     future,
     path::PathBuf,
     sync::Arc,
@@ -11,8 +13,8 @@ use std::{
 };
 
 use auth::TokenProvider;
-use catalog::Library;
-use model::{Anchor, Command, Event, List};
+use catalog::{CatalogService, Library};
+use model::{Anchor, Command, Event, List, Route};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{sync::mpsc, task::JoinHandle, time};
@@ -20,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
 use self::library::report;
-use crate::view::View;
+use crate::view::{Loading, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
 /// the wall clock, so a sync missed while the computer slept runs soon after it wakes.
@@ -33,6 +35,8 @@ pub(crate) struct Deps {
     pub(crate) cache_dir: PathBuf,
     /// Hush's Spotify app, for the Web API; without it the Web API stays off.
     pub(crate) client_id: Option<Box<str>>,
+    /// Whether the catalog may come from spclient; off leaves it to the Web API.
+    pub(crate) spclient: bool,
     pub(crate) http: reqwest::Client,
     pub(crate) store: Store,
     pub(crate) view: View,
@@ -59,23 +63,44 @@ impl Handle {
     }
 }
 
+/// Where catalog pages come from.
+#[derive(Debug)]
+enum Catalog {
+    /// The device and the Web API are still starting.
+    Starting,
+    Ready(CatalogService),
+    /// Neither spclient nor the Web API is available.
+    Off,
+}
+
 struct Controller {
     view: View,
     store: Store,
+    /// Where spawned work reports back.
+    events: mpsc::Sender<Event>,
     anchor: Anchor,
     device: Option<Device>,
+    /// Whether Hush is the active Spotify Connect device.
+    active: bool,
     /// Set once the Web API is signed in.
     library: Option<Library>,
+    catalog: Catalog,
+    /// Catalog lookups that are running or failed, by list.
+    fetches: HashMap<List, Loading>,
     /// Cancels the library sync while one runs.
     syncing: Option<CancellationToken>,
-    /// The list whose tracks are on show.
+    /// The list the library page shows.
     open: List,
+    route: Route,
+    /// The pages Back returns to, oldest first.
+    history: Vec<Route>,
 }
 
 async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
     let Deps {
         cache_dir,
         client_id,
+        spclient,
         http,
         store,
         view,
@@ -84,11 +109,17 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
     let mut controller = Controller {
         view,
         store: store.clone(),
+        events: events.clone(),
         anchor: Anchor::new(Instant::now()),
         device: None,
+        active: false,
         library: None,
+        catalog: Catalog::Starting,
+        fetches: HashMap::new(),
         syncing: None,
         open: List::LikedSongs,
+        route: Route::NowPlaying,
+        history: Vec::new(),
     };
     controller.show_library().await;
 
@@ -106,7 +137,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         tokio::select! {
             (library, device) = &mut start, if !started => {
                 started = true;
-                player = controller.started(library, device);
+                player = controller.started(library, device, spclient).await;
             }
             command = commands.recv() => {
                 let Some(command) = command else { break };
@@ -191,31 +222,51 @@ async fn web_api(
 }
 
 impl Controller {
-    /// Takes in the Web API and the device once they have started, and returns the
-    /// device's events.
-    fn started(
+    /// Takes in the Web API and the device once they have started, starts the catalog on
+    /// what is available, and returns the device's events.
+    async fn started(
         &mut self,
         library: Option<Library>,
         device: Result<(Device, Events), playback::Error>,
+        spclient: bool,
     ) -> Option<Events> {
+        let gateway = library.as_ref().map(|library| library.gateway.clone());
         if let Some(library) = library {
             self.view.web_api(library.gateway.metrics());
             self.library = Some(library);
             self.sync(false);
         }
-        match device {
+        let (session, events) = match device {
             Ok((device, events)) => {
                 tracing::info!("\"Hush\" is in the Spotify Connect device list");
                 self.view.connected();
+                let session = spclient.then(|| device.session());
                 self.device = Some(device);
-                Some(events)
+                (session, Some(events))
             }
             Err(error) => {
                 tracing::error!(%error, "could not start the Spotify Connect device");
                 self.view.failed(&error);
-                None
+                (None, None)
             }
+        };
+        if !spclient {
+            tracing::info!("HUSH_CATALOG is web-api; spclient is off for the catalog");
         }
+        self.catalog = if session.is_none() && gateway.is_none() {
+            tracing::error!("no catalog source; album and artist pages stay empty");
+            Catalog::Off
+        } else {
+            Catalog::Ready(CatalogService::spawn(catalog::Deps {
+                store: self.store.clone(),
+                session,
+                gateway,
+            }))
+        };
+        report(self.show_open().await);
+        self.fetch_open();
+        self.show_route().await;
+        events
     }
 
     async fn command(&mut self, command: Command) {
@@ -242,9 +293,17 @@ impl Controller {
                     self.view.volume(volume);
                 }
             }
+            Command::Play {
+                list,
+                start,
+                shuffle,
+            } => report(self.play(list, start, shuffle).await),
+            Command::Navigate(route) => self.navigate(route).await,
+            Command::Back => self.back().await,
             Command::OpenList(list) => {
                 self.open = list;
                 report(self.show_open().await);
+                self.fetch_open();
             }
             Command::RowsVisible { entity, keys } => report(self.rows(entity, keys).await),
             Command::SyncLibrary => self.sync(true),
@@ -271,6 +330,7 @@ impl Controller {
                 self.view.progress(self.anchor);
             }
             Event::Volume(volume) => self.view.volume(volume),
+            Event::Active(active) => self.active = active,
             Event::Degraded(reason) => tracing::warn!(?reason, "running degraded"),
             Event::Playing { .. } | Event::Paused { .. } | Event::Seeked { .. } => {
                 self.view.progress(self.anchor);
@@ -281,6 +341,7 @@ impl Controller {
                 self.view.syncing(None);
             }
             Event::ListChanged(list) => report(self.list_changed(list).await),
+            Event::Fetched { list, outcome } => report(self.fetched(list, outcome).await),
         }
     }
 }

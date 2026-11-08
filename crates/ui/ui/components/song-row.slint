@@ -1,10 +1,14 @@
 import { Theme } from "../theme.slint";
 import { TrackRow } from "../library.slint";
 
-// A track in a list: art, title over artists, and length. It lights up under the
-// pointer.
+// A track in a list: art or its number, title over artists, and length. It lights up
+// under the pointer, plays on a double click, and its artists open the first artist.
 export component SongRow inherits Rectangle {
     in property <TrackRow> track;
+    // Shown in place of the art when above 0.
+    in property <int> number;
+    callback play();
+    callback open-artist(int);
 
     height: Theme.row-height;
     border-radius: Theme.radius-md;
@@ -12,15 +16,27 @@ export component SongRow inherits Rectangle {
     animate background { duration: Theme.duration-fast; easing: ease-out; }
     accessible-role: list-item;
     accessible-label: root.track.title + ", " + root.track.artists;
+    accessible-action-default => { root.play(); }
 
-    touch := TouchArea {}
+    touch := TouchArea {
+        double-clicked => { root.play(); }
+    }
 
     HorizontalLayout {
         padding-left: Theme.space-2;
         padding-right: Theme.space-4;
         spacing: Theme.space-4;
 
-        VerticalLayout {
+        if root.number > 0: Text {
+            width: Theme.art-row;
+            text: root.number;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: Theme.text-body;
+            color: Theme.text-tertiary;
+        }
+
+        if root.number <= 0: VerticalLayout {
             alignment: center;
 
             Rectangle {
@@ -43,11 +59,21 @@ export component SongRow inherits Rectangle {
                 color: Theme.text;
             }
 
-            Text {
-                text: root.track.artists;
-                overflow: elide;
-                font-size: Theme.text-small;
-                color: Theme.text-secondary;
+            HorizontalLayout {
+                alignment: start;
+
+                Text {
+                    text: root.track.artists;
+                    overflow: elide;
+                    font-size: Theme.text-small;
+                    color: link.has-hover ? Theme.text : Theme.text-secondary;
+
+                    link := TouchArea {
+                        enabled: root.track.artist-key > 0;
+                        mouse-cursor: pointer;
+                        clicked => { root.open-artist(root.track.artist-key); }
+                    }
+                }
             }
         }
 
