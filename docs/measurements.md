@@ -134,3 +134,24 @@ triggers were checked on the copy: a new liked song is found by title and artist
 and after a rename only its new title matches. Still to check by hand in the app: typing
 "radiohead" at normal speed sends exactly 1 Web API request (debug overlay), and the same
 search within 10 minutes sends 0.
+
+## M8 — Images + polish (Nov 8, 2026)
+
+Release build, window maximized at 1024 × 720 (this machine's display), Task Manager's
+*Memory* figure (`\Process(hush)\Working Set - Private`). A scripted session of 5 minutes
+(not the 30 the exit test asks for): six rounds of opening the library, scrolling Liked
+Songs, opening the album grid and ten playlists, and two catalog searches with their first
+album or artist page, 12 searches in all. Pictures loaded from the CDN and then the disk
+cache.
+
+| Point | Private working set |
+| --- | --- |
+| Library open after launch | 13.5 MB |
+| Steady while browsing | 34–38 MB |
+| Peak | 39.7 MB |
+| 20 s after the last step | 36.2 MB |
+
+The decoded-picture cache is capped at 16 MB by construction (`kit::ByteLru`, 16 MiB), so
+the exit test's ≤ 16 MB holds whatever the session. Peak (≤ 100 MB) and steady (≤ 85 MB)
+RSS are far inside the targets. Still to check by hand: a full 30 minutes of mixed
+browsing, and CPU while scrolling a list over the art backdrop with a track playing.
