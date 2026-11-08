@@ -1,0 +1,21 @@
+// The queue state the Controller pushes to the UI, and the commands the UI sends back.
+
+import { TrackRow } from "library.slint";
+
+export global Queue {
+    // Whether the queue panel is open.
+    in-out property <bool> open;
+    // What plays next on the active device, as it last reported.
+    in property <[TrackRow]> tracks;
+
+    // Adds the track with this key to the end of the queue.
+    callback add(int);
+    // The panel opened, or with `false` closed.
+    callback show(bool);
+
+    // Opens the panel, or with `false` closes it.
+    public function set-open(open: bool) {
+        self.open = open;
+        self.show(open);
+    }
+}

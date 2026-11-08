@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use model::{
     Entity, SpotifyId,
-    web::{Devices, History, Player, Profile, Search},
+    web::{Devices, History, Player, Profile, Queue, Search},
 };
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
@@ -92,6 +92,24 @@ impl ApiGateway {
     /// What plays on the active device; `None` when no device is active.
     pub async fn player(&self, cancel: CancellationToken) -> Result<Option<Player>, Error> {
         self.get("/me/player", Lane::P1, cancel).await
+    }
+
+    /// What plays next on the active device; `None` when no device is active.
+    pub async fn queue(&self, cancel: CancellationToken) -> Result<Option<Queue>, Error> {
+        self.get("/me/player/queue", Lane::P1, cancel).await
+    }
+
+    /// Adds the track with ID `id` to the end of the active device's queue.
+    pub async fn add_to_queue(
+        &self,
+        id: SpotifyId,
+        cancel: CancellationToken,
+    ) -> Result<(), Error> {
+        let path = format!(
+            "/me/player/queue?uri={}",
+            encode(&format!("spotify:track:{id}"))
+        );
+        self.send(Method::Post, &path, None, Lane::P0, cancel).await
     }
 
     /// Moves playback to the device with ID `device`, playing there when `play` is set and

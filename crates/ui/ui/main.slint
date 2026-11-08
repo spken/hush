@@ -15,13 +15,15 @@ import { ArtistPage } from "artist-page.slint";
 import { SearchPage } from "search-page.slint";
 import { SettingsPage } from "settings-page.slint";
 import { SettingsView, UpdateState } from "settings.slint";
+import { Queue } from "queue.slint";
+import { QueuePanel } from "queue-panel.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 import { Backdrop } from "components/backdrop.slint";
 import { Notice } from "components/notice.slint";
 
 export { DeviceRow } from "player.slint";
 export { Theme } from "theme.slint";
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView, UpdateState }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView, UpdateState, Queue }
 
 export component MainWindow inherits Window {
     property <bool> immersive;
@@ -98,30 +100,40 @@ export component MainWindow inherits Window {
                         message: Player.notice;
                     }
 
-                    if Nav.page == Page.now-playing: NowPlayingPage {
+                    HorizontalLayout {
                         vertical-stretch: 1;
-                        full-screen: root.immersive;
-                        toggle-full-screen => { root.immersive = !root.immersive; }
-                    }
 
-                    if Nav.page == Page.search: SearchPage {
-                        vertical-stretch: 1;
-                    }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
 
-                    if Nav.page == Page.settings: SettingsPage {
-                        vertical-stretch: 1;
-                    }
+                            if Nav.page == Page.now-playing: NowPlayingPage {
+                                vertical-stretch: 1;
+                                full-screen: root.immersive;
+                                toggle-full-screen => { root.immersive = !root.immersive; }
+                            }
 
-                    if Nav.page == Page.library: LibraryPage {
-                        vertical-stretch: 1;
-                    }
+                            if Nav.page == Page.search: SearchPage {
+                                vertical-stretch: 1;
+                            }
 
-                    if Nav.page == Page.album: AlbumPage {
-                        vertical-stretch: 1;
-                    }
+                            if Nav.page == Page.settings: SettingsPage {
+                                vertical-stretch: 1;
+                            }
 
-                    if Nav.page == Page.artist: ArtistPage {
-                        vertical-stretch: 1;
+                            if Nav.page == Page.library: LibraryPage {
+                                vertical-stretch: 1;
+                            }
+
+                            if Nav.page == Page.album: AlbumPage {
+                                vertical-stretch: 1;
+                            }
+
+                            if Nav.page == Page.artist: ArtistPage {
+                                vertical-stretch: 1;
+                            }
+                        }
+
+                        if Queue.open && !root.immersive: QueuePanel {}
                     }
 
                     if Player.has-track: Controls {}

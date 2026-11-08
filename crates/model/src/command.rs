@@ -24,6 +24,10 @@ pub enum Command {
         start: Option<u32>,
         shuffle: bool,
     },
+    /// Add the track with this key to the end of the queue of whichever device plays.
+    Queue(u32),
+    /// The queue panel opened, or with `false` closed.
+    ShowQueue(bool),
     /// Show a page, remembering the one on show for `Back` unless `route` is a top-level
     /// page.
     Navigate(Route),

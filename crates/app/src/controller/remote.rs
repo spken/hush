@@ -134,6 +134,7 @@ impl Controller {
         self.show_backdrop(&track.art);
         self.view.track(Some(track));
         self.view.progress(self.anchor);
+        self.read_queue(Duration::ZERO);
         self.poll_in(HEARTBEAT);
         if playing {
             self.poll_in(left + AFTER_TRACK_END);

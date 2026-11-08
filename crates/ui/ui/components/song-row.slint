@@ -1,26 +1,55 @@
 import { Theme } from "../theme.slint";
 import { TrackRow } from "../library.slint";
+import { Queue } from "../queue.slint";
 import { Artwork } from "artwork.slint";
+import { Icon, Icons } from "icon.slint";
+import { MenuItem, MenuCard } from "menu.slint";
 
 // A track in a list: art or its number, title over artists, and length. It lights up
-// under the pointer, plays on a double click, and its artists open the first artist.
+// under the pointer, where a play button takes the place of its art or number. It plays
+// from that button or on a double click, a right click offers to play or queue it, and
+// its artists open the first artist.
 export component SongRow inherits Rectangle {
     in property <TrackRow> track;
     // Shown in place of the art when above 0.
     in property <int> number;
+    // Whether it plays and offers its menu; off where a row only shows a track.
+    in property <bool> playable: true;
     callback play();
     callback open-artist(int);
 
+    property <bool> hovered: touch.has-hover || play-area.has-hover || link.has-hover;
+    property <bool> show-play: root.playable && root.hovered;
+    // Where the menu opens, in the row's coordinates.
+    property <length> menu-x;
+    property <length> menu-y;
+
+    // Opens the menu on a right click at `x`, `y` in the window.
+    function menu-at(event: PointerEvent, x: length, y: length) {
+        if (root.playable && event.button == PointerEventButton.right && event.kind == PointerEventKind.up) {
+            root.menu-x = x - root.absolute-position.x;
+            root.menu-y = y - root.absolute-position.y;
+            menu.show();
+        }
+    }
+
     height: Theme.row-height;
     border-radius: Theme.radius-md;
-    background: touch.has-hover ? Theme.hover : transparent;
+    background: root.show-play ? Theme.hover : transparent;
     animate background { duration: Theme.duration-fast; easing: ease-out; }
     accessible-role: list-item;
     accessible-label: root.track.title + ", " + root.track.artists;
     accessible-action-default => { root.play(); }
 
     touch := TouchArea {
-        double-clicked => { root.play(); }
+        double-clicked => {
+            if (root.playable) {
+                root.play();
+            }
+        }
+        pointer-event(event) => {
+            root.menu-at(event, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+        }
     }
 
     HorizontalLayout {
@@ -28,21 +57,48 @@ export component SongRow inherits Rectangle {
         padding-right: Theme.space-4;
         spacing: Theme.space-4;
 
-        if root.number > 0: Text {
-            width: Theme.art-row;
-            text: root.number;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            font-size: Theme.text-body;
-            color: Theme.text-tertiary;
-        }
-
-        if root.number <= 0: VerticalLayout {
+        VerticalLayout {
             alignment: center;
 
-            Artwork {
-                size: Theme.art-row;
-                art: root.track.art;
+            Rectangle {
+                width: Theme.art-row;
+                height: Theme.art-row;
+
+                if root.number <= 0: Artwork {
+                    size: Theme.art-row;
+                    art: root.track.art;
+                }
+
+                if root.number > 0 && !root.show-play: Text {
+                    text: root.number;
+                    font-size: Theme.text-body;
+                    color: Theme.text-tertiary;
+                }
+
+                if root.show-play: Rectangle {
+                    border-radius: Theme.radius-sm;
+                    background: root.number > 0 ? transparent : Theme.scrim;
+                    accessible-role: button;
+                    accessible-label: "Play " + root.track.title;
+                    accessible-action-default => { root.play(); }
+
+                    Icon {
+                        commands: Icons.play;
+                        width: Theme.icon-md;
+                        height: Theme.icon-md;
+                        fill: Theme.text;
+                        opacity: play-area.has-hover ? 1 : 0.85;
+                    }
+                }
+
+                play-area := TouchArea {
+                    enabled: root.playable;
+                    mouse-cursor: pointer;
+                    clicked => { root.play(); }
+                    pointer-event(event) => {
+                        root.menu-at(event, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                    }
+                }
             }
         }
 
@@ -83,6 +139,31 @@ export component SongRow inherits Rectangle {
             vertical-alignment: center;
             font-size: Theme.text-small;
             color: Theme.text-tertiary;
+        }
+    }
+
+    menu := PopupWindow {
+        x: root.menu-x;
+        y: root.menu-y;
+        width: Theme.menu-width;
+        height: 2 * Theme.menu-row + 2 * Theme.space-2;
+
+        MenuCard {
+            MenuItem {
+                text: "Play";
+                clicked => {
+                    root.play();
+                    menu.close();
+                }
+            }
+
+            MenuItem {
+                text: "Add to Queue";
+                clicked => {
+                    Queue.add(root.track.key);
+                    menu.close();
+                }
+            }
         }
     }
 }

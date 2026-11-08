@@ -5,6 +5,7 @@ mod art;
 mod catalog;
 mod devices;
 mod library;
+mod queue;
 mod search;
 mod settings;
 
@@ -202,6 +203,7 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
     library::bind(window, controller);
     catalog::bind(window, controller);
     search::bind(window, controller);
+    queue::bind(window, controller);
     art::bind(window, controller);
     settings::bind(window, controller);
 

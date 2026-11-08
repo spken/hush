@@ -154,6 +154,14 @@ pub struct Player {
     pub shuffle_state: Option<bool>,
 }
 
+/// `/me/player/queue`: what plays next on the active device.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Queue {
+    /// Up to 20 tracks: the user's queue first, then the rest of what plays.
+    pub queue: Vec<Track>,
+}
+
 /// `/me/player/recently-played`: the last tracks played, newest first.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]

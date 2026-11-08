@@ -1,53 +1,6 @@
 import { Theme } from "../theme.slint";
 import { Icon, Icons } from "icon.slint";
-
-// One choice in a menu, marked while it is the current one.
-component MenuItem inherits Rectangle {
-    in property <string> text;
-    in property <bool> current;
-    callback clicked();
-
-    height: Theme.menu-row;
-    border-radius: Theme.radius-sm;
-    background: touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
-    animate background { duration: Theme.duration-fast; easing: ease-out; }
-    accessible-role: list-item;
-    accessible-label: root.text;
-    accessible-item-selected: root.current;
-    accessible-action-default => { root.clicked(); }
-
-    HorizontalLayout {
-        padding-left: Theme.space-3;
-        padding-right: Theme.space-3;
-        spacing: Theme.space-3;
-
-        Text {
-            horizontal-stretch: 1;
-            text: root.text;
-            vertical-alignment: center;
-            overflow: elide;
-            font-size: Theme.text-body;
-            font-weight: root.current ? Theme.weight-semibold : Theme.weight-regular;
-            color: Theme.text;
-        }
-
-        VerticalLayout {
-            alignment: center;
-
-            Icon {
-                commands: Icons.check;
-                width: Theme.icon-sm;
-                height: Theme.icon-sm;
-                opacity: root.current ? 1 : 0;
-            }
-        }
-    }
-
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-    }
-}
+import { MenuItem, MenuCard } from "menu.slint";
 
 // Quiet text naming the current choice; clicking it lists every choice below it.
 export component MenuButton inherits Rectangle {
@@ -105,22 +58,13 @@ export component MenuButton inherits Rectangle {
         x: root.width - self.width;
         y: root.height + Theme.space-1;
 
-        Rectangle {
-            border-radius: Theme.radius-lg;
-            background: Theme.panel;
-            border-width: Theme.hairline;
-            border-color: Theme.edge;
-
-            VerticalLayout {
-                padding: Theme.space-2;
-
-                for option[index] in root.options: MenuItem {
-                    text: option;
-                    current: index == root.current;
-                    clicked => {
-                        root.chosen(index);
-                        popup.close();
-                    }
+        MenuCard {
+            for option[index] in root.options: MenuItem {
+                text: option;
+                current: index == root.current;
+                clicked => {
+                    root.chosen(index);
+                    popup.close();
                 }
             }
         }
