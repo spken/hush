@@ -121,3 +121,34 @@ pub struct Profile {
     pub id: Option<Box<str>>,
     pub display_name: Option<Box<str>>,
 }
+
+/// A Spotify Connect device as the Web API lists it.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Device {
+    pub id: Option<Box<str>>,
+    pub name: Option<Box<str>>,
+    /// `"Computer"`, `"Smartphone"`, `"Speaker"` and so on.
+    #[serde(rename = "type")]
+    pub kind: Option<Box<str>>,
+    pub is_active: Option<bool>,
+    pub volume_percent: Option<u32>,
+}
+
+/// The user's Spotify Connect devices.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Devices {
+    pub devices: Vec<Device>,
+}
+
+/// What plays and where, from `/me/player`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Player {
+    pub device: Option<Device>,
+    pub progress_ms: Option<u32>,
+    pub is_playing: Option<bool>,
+    /// The track; an episode or an ad reads as a track without an ID.
+    pub item: Option<Track>,
+}

@@ -99,6 +99,11 @@ impl Device {
         Ok((device, events))
     }
 
+    /// The device's Spotify Connect ID, as the Web API lists it.
+    pub fn id(&self) -> &str {
+        self.session.device_id()
+    }
+
     /// The device's logged-in librespot session, for metadata lookups.
     pub fn session(&self) -> Session {
         self.session.clone()

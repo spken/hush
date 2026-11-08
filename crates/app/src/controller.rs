@@ -4,6 +4,7 @@
 mod library;
 mod media;
 mod pages;
+mod remote;
 mod search;
 mod settings;
 
@@ -27,9 +28,14 @@ use tokio::{
     time,
 };
 use tokio_util::sync::CancellationToken;
-use webapi::{ApiGateway, Lane};
+use webapi::{ApiGateway, Control, Lane};
 
-use self::{library::report, media::Overlay, search::Search};
+use self::{
+    library::report,
+    media::Overlay,
+    remote::{Remote, volume_to_percent},
+    search::Search,
+};
 use crate::view::{Loading, PictureKey, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
@@ -117,6 +123,7 @@ struct Controller {
     overlay: Option<Overlay>,
     /// The playback settings, as saved.
     playback: Playback,
+    remote: Remote,
 }
 
 /// Runs the Controller until every `Handle` is dropped; `own` lets the media overlay send
@@ -152,6 +159,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         backdrop: CancellationToken::new(),
         overlay: None,
         playback: Playback::default(),
+        remote: Remote::new(),
     };
     match store.playback().await {
         Ok(playback) => controller.playback = playback,
@@ -193,6 +201,8 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
                 controller.event(event).await;
             }
             Some(event) = service_events.recv() => controller.event(event).await,
+            () = time::sleep_until(controller.remote.poll_at.unwrap_or_else(time::Instant::now)),
+                if controller.remote.poll_at.is_some() => controller.poll(),
             _ = sync_check.tick() => controller.sync(false),
         }
     }
@@ -310,27 +320,38 @@ impl Controller {
         report(self.show_open().await);
         self.fetch_open();
         self.show_route().await;
+        // Another device may be playing already.
+        self.poll_in(Duration::ZERO);
         events
     }
 
     async fn command(&mut self, command: Command) {
         match command {
             Command::PlayPause => {
-                self.playback(Device::play_pause);
+                let playing = !self.anchor.is_playing();
+                self.set_playing(playing);
             }
             Command::SetPlaying(playing) => {
                 if self.anchor.is_playing() != playing {
-                    self.playback(Device::play_pause);
+                    self.set_playing(playing);
                 }
             }
+            Command::Next if self.remote_active() => self.control_remote(Control::Next),
             Command::Next => {
                 self.playback(Device::next);
             }
+            Command::Previous if self.remote_active() => self.control_remote(Control::Previous),
             Command::Previous => {
                 self.playback(Device::previous);
             }
             Command::Seek { position_ms } => {
-                if self.playback(|device| device.seek(position_ms)) {
+                let sent = if self.remote_active() {
+                    self.control_remote(Control::Seek(position_ms));
+                    true
+                } else {
+                    self.playback(|device| device.seek(position_ms))
+                };
+                if sent {
                     // Move the bar now instead of when the player confirms the seek.
                     let seeked = Event::Seeked { position_ms };
                     self.anchor.apply(&seeked, Instant::now());
@@ -338,10 +359,27 @@ impl Controller {
                 }
             }
             Command::SetVolume(volume) => {
-                if self.playback(|device| device.set_volume(volume)) {
+                let sent = if self.remote_active() {
+                    self.control_remote(Control::Volume(volume_to_percent(volume)));
+                    true
+                } else {
+                    self.playback(|device| device.set_volume(volume))
+                };
+                if sent {
                     self.view.volume(volume);
                 }
             }
+            Command::WindowFocused => self.poll_in(Duration::ZERO),
+            Command::WindowVisible(visible) => {
+                self.remote.visible = visible;
+                if visible {
+                    self.poll_in(Duration::ZERO);
+                } else {
+                    self.remote.poll_at = None;
+                }
+            }
+            Command::ListDevices => self.list_devices(),
+            Command::Transfer(id) => self.transfer(&id),
             Command::Play {
                 list,
                 start,
@@ -364,6 +402,27 @@ impl Controller {
             Command::LoadPicture { url, px, radius } => {
                 self.load_picture(PictureKey { url, px, radius });
             }
+        }
+    }
+
+    /// Resumes, or with `false` pauses, wherever playback is.
+    fn set_playing(&mut self, playing: bool) {
+        if self.remote_active() {
+            self.control_remote(if playing {
+                Control::Play
+            } else {
+                Control::Pause
+            });
+            let position_ms = self.anchor.position_at(Instant::now());
+            let event = if playing {
+                Event::Playing { position_ms }
+            } else {
+                Event::Paused { position_ms }
+            };
+            self.anchor.apply(&event, Instant::now());
+            self.view.progress(self.anchor);
+        } else {
+            self.playback(Device::play_pause);
         }
     }
 
@@ -397,7 +456,17 @@ impl Controller {
                 self.view.progress(self.anchor);
             }
             Event::Volume(volume) => self.view.volume(volume),
-            Event::Active(active) => self.active = active,
+            Event::Active(active) => {
+                self.active = active;
+                if active {
+                    self.remote.device = None;
+                    self.remote.poll_at = None;
+                    self.view.remote(None);
+                } else {
+                    self.settle();
+                }
+            }
+            Event::Polled(player) => self.polled(player),
             Event::Degraded(reason) => tracing::warn!(?reason, "running degraded"),
             Event::Playing { .. } | Event::Paused { .. } | Event::Seeked { .. } => {
                 if let Some(overlay) = &mut self.overlay {

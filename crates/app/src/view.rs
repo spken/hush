@@ -3,14 +3,18 @@
 
 mod art;
 mod catalog;
+mod devices;
 mod library;
 mod search;
 mod settings;
 
-use std::{fmt, time::Instant};
+use std::{cell::Cell, fmt, time::Instant};
 
 use model::{Anchor, Command, Entity, List, Track};
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
+use slint::{
+    ComponentHandle, Model, ModelRc, SharedString, VecModel,
+    winit_030::{EventResult, WinitWindowAccessor, winit::event::WindowEvent},
+};
 use tokio::sync::watch;
 use ui::{Connection, EndpointRequests, Format, KeyListModel, MainWindow, Player};
 use webapi::Metrics;
@@ -138,6 +142,11 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
         });
     });
     let set_volume = controller.clone();
+    let list = controller.clone();
+    player.on_list_devices(move || list.send(Command::ListDevices));
+    let transfer = controller.clone();
+    player.on_transfer(move |id| transfer.send(Command::Transfer(id.as_str().into())));
+    window_state(window, controller);
     player.on_set_volume(move |volume| {
         set_volume.send(Command::SetVolume(
             u16::try_from(volume.max(0)).unwrap_or(u16::MAX),
@@ -259,4 +268,25 @@ fn int(value: u32) -> i32 {
 fn megabytes(bytes: usize) -> SharedString {
     const MIB: usize = 1 << 20;
     format!("{}.{} MB", bytes / MIB, bytes * 10 / MIB % 10).into()
+}
+
+/// Tells the Controller when the window gains the focus and when it is minimized or shown
+/// again, which decides when another device's playback is read.
+fn window_state(window: &MainWindow, controller: &controller::Handle) {
+    let controller = controller.clone();
+    let visible = Cell::new(true);
+    window.window().on_winit_window_event(move |_, event| {
+        match event {
+            WindowEvent::Focused(true) => controller.send(Command::WindowFocused),
+            // Windows reports a minimized window as resized to nothing.
+            WindowEvent::Resized(size) => {
+                let shown = size.width > 0 && size.height > 0;
+                if visible.replace(shown) != shown {
+                    controller.send(Command::WindowVisible(shown));
+                }
+            }
+            _ => {}
+        }
+        EventResult::Propagate
+    });
 }

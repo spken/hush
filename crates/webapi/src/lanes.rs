@@ -19,11 +19,33 @@ pub enum Lane {
     P3,
 }
 
-/// A request that missed the cache, waiting for its turn.
+/// How a request changes something, for requests that are not GETs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Method {
+    Put,
+    Post,
+}
+
+/// A request that changes something: its method, JSON body and a number that tells it
+/// apart from identical ones, which are never merged.
+#[derive(Debug)]
+pub(crate) struct Write {
+    pub(crate) method: Method,
+    pub(crate) body: Option<Box<str>>,
+    pub(crate) id: u64,
+}
+
+/// What callers wait on: a path, and for a write its number; 0 for a GET, so identical
+/// GETs share one request.
+pub(crate) type Key = (Box<str>, u64);
+
+/// A request that missed the cache, or a write, waiting for its turn.
 #[derive(Debug)]
 pub(crate) struct Job {
     pub(crate) path: Box<str>,
     pub(crate) lane: Lane,
+    /// `None` for a GET.
+    pub(crate) write: Option<Write>,
     /// The stale cached response and its `ETag`, to revalidate.
     pub(crate) revalidate: Option<(Box<str>, Bytes)>,
     /// Whether it already went back in line after a 429.
@@ -32,14 +54,30 @@ pub(crate) struct Job {
 }
 
 impl Job {
-    pub(crate) fn new(path: Box<str>, lane: Lane, revalidate: Option<(Box<str>, Bytes)>) -> Self {
+    pub(crate) fn new(
+        path: Box<str>,
+        lane: Lane,
+        write: Option<Write>,
+        revalidate: Option<(Box<str>, Bytes)>,
+    ) -> Self {
         Self {
             path,
             lane,
+            write,
             revalidate,
             retried: false,
             queued_at: Instant::now(),
         }
+    }
+}
+
+impl Job {
+    /// What its callers wait on.
+    pub(crate) fn key(&self) -> Key {
+        (
+            self.path.clone(),
+            self.write.as_ref().map_or(0, |write| write.id),
+        )
     }
 }
 

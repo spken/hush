@@ -3,11 +3,14 @@ use std::{sync::Arc, time::Duration};
 use bytes::Bytes;
 use reqwest::{
     Response, StatusCode,
-    header::{ETAG, IF_NONE_MATCH, RETRY_AFTER},
+    header::{CONTENT_LENGTH, CONTENT_TYPE, ETAG, IF_NONE_MATCH, RETRY_AFTER},
 };
 use store::Store;
 
-use crate::{Error, Lane, endpoints, lanes::Job};
+use crate::{
+    Error, Lane, endpoints,
+    lanes::{Job, Method},
+};
 
 /// Tries per request for server and network errors, on the urgent lanes only.
 const ATTEMPTS: u32 = 3;
@@ -65,7 +68,23 @@ async fn send(ctx: &Ctx, job: &Job, sent: &mut u32) -> Outcome {
     let mut failures = 0;
     loop {
         *sent += 1;
-        let mut request = ctx.http.get(&url).bearer_auth(&token);
+        let mut request = match &job.write {
+            None => ctx.http.get(&url),
+            Some(write) => {
+                let request = match write.method {
+                    Method::Put => ctx.http.put(&url),
+                    Method::Post => ctx.http.post(&url),
+                };
+                match &write.body {
+                    Some(body) => request
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(body.to_string()),
+                    // Spotify answers 411 to a write without a length.
+                    None => request.header(CONTENT_LENGTH, 0),
+                }
+            }
+        }
+        .bearer_auth(&token);
         if let Some((etag, _)) = &job.revalidate {
             request = request.header(IF_NONE_MATCH, &**etag);
         }
@@ -90,6 +109,9 @@ async fn send(ctx: &Ctx, job: &Job, sent: &mut u32) -> Outcome {
                         };
                         let body = keep(ctx, url, &job.path, Some(etag.clone()), body.clone());
                         return Outcome::Done(Ok(body.await));
+                    }
+                    status if status.is_success() && job.write.is_some() => {
+                        return Outcome::Done(response.bytes().await.map_err(Error::from));
                     }
                     status if status.is_success() => {
                         return Outcome::Done(ok(ctx, url, &job.path, response).await);

@@ -42,6 +42,14 @@ pub enum Command {
     SetPlayback(Playback),
     /// Play the songs the search found, from the one with this key.
     PlayFound(u32),
+    /// The window gained the keyboard focus.
+    WindowFocused,
+    /// The window was minimized, or with `true` can be seen again.
+    WindowVisible(bool),
+    /// List the Spotify Connect devices for the device picker.
+    ListDevices,
+    /// Move playback to the Spotify Connect device with this ID.
+    Transfer(Box<str>),
     /// The UI needs the picture at `url`, `px` pixels square with corners of `radius`.
     LoadPicture { url: Box<str>, px: u32, radius: u32 },
 }

@@ -61,7 +61,8 @@ export component NowPlayingPage {
                 }
 
                 Text {
-                    text: Format.clock(Player.duration-ms);
+                    text: Player.remote-device == "" ? Format.clock(Player.duration-ms)
+                        : Format.clock(Player.duration-ms) + " · Playing on " + Player.remote-device;
                     font-size: Theme.text-body;
                     color: Theme.text-tertiary;
                 }

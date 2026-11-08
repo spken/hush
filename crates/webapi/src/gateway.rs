@@ -17,7 +17,7 @@ use crate::{
     bucket::Bucket,
     endpoints,
     fetch::{self, Ctx, Fetched, Outcome},
-    lanes::{Job, Lanes},
+    lanes::{Job, Key, Lanes, Method, Write},
 };
 
 /// The Spotify Web API root that request paths are relative to.
@@ -48,6 +48,13 @@ pub struct ApiGateway {
 
 enum Msg {
     Get(Req<Result<Bytes, Error>>, Box<str>, Lane),
+    Send(
+        Req<Result<Bytes, Error>>,
+        Box<str>,
+        Method,
+        Option<Box<str>>,
+        Lane,
+    ),
 }
 
 impl ApiGateway {
@@ -73,7 +80,29 @@ impl ApiGateway {
         cancel: CancellationToken,
     ) -> Result<T, Error> {
         let body = kit::call(&self.tx, cancel, |req| Msg::Get(req, path.into(), lane)).await?;
-        Ok(serde_json::from_slice(&body)?)
+        // An empty answer, such as 204 No Content, reads as JSON `null`.
+        Ok(serde_json::from_slice(if body.is_empty() {
+            b"null"
+        } else {
+            &body
+        })?)
+    }
+
+    /// Sends a request that changes something, with an optional JSON body. It is never
+    /// cached or merged with another.
+    pub async fn send(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<Box<str>>,
+        lane: Lane,
+        cancel: CancellationToken,
+    ) -> Result<(), Error> {
+        kit::call(&self.tx, cancel, |req| {
+            Msg::Send(req, path.into(), method, body, lane)
+        })
+        .await
+        .map(drop)
     }
 }
 
@@ -93,7 +122,9 @@ enum Done {
 struct Gateway {
     ctx: Arc<Ctx>,
     lanes: Lanes,
-    waiting: Coalescer<Box<str>, Result<Bytes, Error>>,
+    waiting: Coalescer<Key, Result<Bytes, Error>>,
+    /// The number of the last write queued.
+    writes: u64,
     bucket: Bucket,
     /// Every lane waits until then after a 429.
     paused_until: Option<Instant>,
@@ -120,6 +151,7 @@ async fn run(deps: Deps, mut rx: mpsc::Receiver<Msg>, metrics: watch::Sender<Met
         }),
         lanes: Lanes::default(),
         waiting: Coalescer::default(),
+        writes: 0,
         bucket: Bucket::new(Instant::now()),
         paused_until: None,
         breaker_until: None,
@@ -133,6 +165,9 @@ async fn run(deps: Deps, mut rx: mpsc::Receiver<Msg>, metrics: watch::Sender<Met
         tokio::select! {
             message = rx.recv() => match message {
                 Some(Msg::Get(req, path, lane)) => gateway.get(req, path, lane, &mut tasks),
+                Some(Msg::Send(req, path, method, body, lane)) => {
+                    gateway.send(req, path, method, body, lane);
+                }
                 None => break,
             },
             Some(done) = tasks.join_next() => match done {
@@ -153,7 +188,7 @@ impl Gateway {
         lane: Lane,
         tasks: &mut JoinSet<Done>,
     ) {
-        if req.is_cancelled() || !self.waiting.join(path.clone(), req) {
+        if req.is_cancelled() || !self.waiting.join((path.clone(), 0), req) {
             return;
         }
         let ctx = self.ctx.clone();
@@ -161,6 +196,28 @@ impl Gateway {
             let cached = ctx.store.cached_response(ctx.url(&path)).await;
             Done::Looked { path, lane, cached }
         });
+    }
+
+    fn send(
+        &mut self,
+        req: Req<Result<Bytes, Error>>,
+        path: Box<str>,
+        method: Method,
+        body: Option<Box<str>>,
+        lane: Lane,
+    ) {
+        if req.is_cancelled() {
+            return;
+        }
+        self.writes += 1;
+        let write = Write {
+            method,
+            body,
+            id: self.writes,
+        };
+        let job = Job::new(path, lane, Some(write), None);
+        self.waiting.join(job.key(), req);
+        self.lanes.push_back(job);
     }
 
     fn done(&mut self, done: Done) {
@@ -183,13 +240,13 @@ impl Gateway {
         match cached {
             Some(cached) if cached.fresh => {
                 self.metrics.send_modify(|metrics| metrics.cache_hits += 1);
-                self.waiting.finish(&path, Ok(cached.body.into()));
+                self.waiting.finish(&(path, 0), Ok(cached.body.into()));
             }
             cached => {
                 self.metrics
                     .send_modify(|metrics| metrics.cache_misses += 1);
                 let revalidate = cached.and_then(|cached| Some((cached.etag?, cached.body.into())));
-                self.lanes.push_back(Job::new(path, lane, revalidate));
+                self.lanes.push_back(Job::new(path, lane, None, revalidate));
             }
         }
     }
@@ -198,13 +255,13 @@ impl Gateway {
         self.metrics
             .send_modify(|metrics| metrics.count(endpoints::endpoint(&job.path), sent));
         match outcome {
-            Outcome::Done(result) => self.waiting.finish(&job.path, result),
+            Outcome::Done(result) => self.waiting.finish(&job.key(), result),
             Outcome::RateLimited(retry_after) => {
                 self.pause(retry_after);
                 self.metrics
                     .send_modify(|metrics| metrics.rate_limited += 1);
                 if job.retried {
-                    self.waiting.finish(&job.path, Err(Error::RateLimited));
+                    self.waiting.finish(&job.key(), Err(Error::RateLimited));
                 } else {
                     job.retried = true;
                     self.lanes.push_front(job);
@@ -221,7 +278,7 @@ impl Gateway {
                     }
                 }
                 self.breaker_until = Some(Instant::now() + BREAKER_OPEN_FOR);
-                self.waiting.finish(&job.path, Err(Error::QuotaExceeded));
+                self.waiting.finish(&job.key(), Err(Error::QuotaExceeded));
             }
         }
     }
@@ -254,7 +311,7 @@ impl Gateway {
         }
         loop {
             let job = self.lanes.pop(now)?;
-            if self.waiting.drop_abandoned(&job.path) {
+            if self.waiting.drop_abandoned(&job.key()) {
                 tracing::debug!(
                     path = &*job.path,
                     "cancelled request dropped before sending"
@@ -275,7 +332,7 @@ impl Gateway {
 
     fn fail_background(&mut self) {
         for job in self.lanes.take_background() {
-            self.waiting.finish(&job.path, Err(Error::QuotaExceeded));
+            self.waiting.finish(&job.key(), Err(Error::QuotaExceeded));
         }
     }
 }

@@ -31,6 +31,7 @@ impl Anchor {
             Event::TrackChanged(_)
             | Event::Volume(_)
             | Event::Active(_)
+            | Event::Polled(_)
             | Event::Degraded(_)
             | Event::Syncing { .. }
             | Event::Synced

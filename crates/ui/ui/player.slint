@@ -2,6 +2,15 @@
 
 export enum Connection { connecting, ready, failed }
 
+// A Spotify Connect device in the device picker.
+export struct DeviceRow {
+    id: string,
+    name: string,
+    // "This computer", or what kind of device it is.
+    detail: string,
+    active: bool,
+}
+
 export global Player {
     in property <Connection> connection;
     in property <string> error;
@@ -22,6 +31,13 @@ export global Player {
     callback previous();
     callback seek(int);
     callback set-volume(int);
+    // The name of the other device that plays, or "" while Hush does.
+    in property <string> remote-device;
+    in property <[DeviceRow]> devices;
+    // Asks for the device list; `devices` fills when it arrives.
+    callback list-devices();
+    // Moves playback to the device with this ID.
+    callback transfer(string);
     // Fires every `Theme.progress-tick` while playing, to move `position-ms` on.
     callback tick();
 }

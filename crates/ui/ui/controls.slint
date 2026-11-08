@@ -2,8 +2,10 @@ import { Theme } from "theme.slint";
 import { Timeline } from "components/timeline.slint";
 import { Transport } from "components/transport.slint";
 import { Volume } from "components/volume.slint";
+import { DevicePicker } from "components/device-picker.slint";
 
-// The borderless strip along the bottom of the canvas: transport, timeline and volume.
+// The borderless strip along the bottom of the canvas: transport, timeline, volume and the
+// device picker.
 export component Controls inherits HorizontalLayout {
     height: Theme.controls-height;
     padding-left: Theme.space-6;
@@ -20,6 +22,10 @@ export component Controls inherits HorizontalLayout {
     }
 
     Volume {
+        horizontal-stretch: 0;
+    }
+
+    DevicePicker {
         horizontal-stretch: 0;
     }
 }

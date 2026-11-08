@@ -2,11 +2,12 @@ use std::time::Duration;
 
 use model::{
     Entity, SpotifyId,
-    web::{Profile, Search},
+    web::{Devices, Player, Profile, Search},
 };
+use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
-use crate::{ApiGateway, Error, Lane};
+use crate::{ApiGateway, Error, Lane, Method};
 
 const DAY: Duration = Duration::from_hours(24);
 /// Search results per type and request, the most Spotify allows dev-mode apps.
@@ -51,6 +52,79 @@ impl ApiGateway {
             types.join(",")
         );
         self.get(&path, Lane::P1, cancel).await
+    }
+}
+
+/// A transport control for the active Spotify Connect device.
+#[derive(Debug, Clone, Copy)]
+pub enum Control {
+    Play,
+    Pause,
+    Next,
+    Previous,
+    /// Jump to this position, in milliseconds.
+    Seek(u32),
+    /// Set the volume, in percent.
+    Volume(u8),
+}
+
+/// The body of a playback transfer.
+#[derive(Serialize)]
+struct Transfer<'a> {
+    device_ids: [&'a str; 1],
+    play: bool,
+}
+
+impl ApiGateway {
+    /// The user's Spotify Connect devices.
+    pub async fn devices(&self, cancel: CancellationToken) -> Result<Devices, Error> {
+        self.get("/me/player/devices", Lane::P1, cancel).await
+    }
+
+    /// What plays on the active device; `None` when no device is active.
+    pub async fn player(&self, cancel: CancellationToken) -> Result<Option<Player>, Error> {
+        self.get("/me/player", Lane::P1, cancel).await
+    }
+
+    /// Moves playback to the device with ID `device`, playing there when `play` is set and
+    /// paused otherwise.
+    pub async fn transfer(
+        &self,
+        device: &str,
+        play: bool,
+        cancel: CancellationToken,
+    ) -> Result<(), Error> {
+        let body = serde_json::to_string(&Transfer {
+            device_ids: [device],
+            play,
+        })?;
+        self.send(
+            Method::Put,
+            "/me/player",
+            Some(body.into()),
+            Lane::P0,
+            cancel,
+        )
+        .await
+    }
+
+    /// Controls the active device.
+    pub async fn control(&self, control: Control, cancel: CancellationToken) -> Result<(), Error> {
+        let (method, path) = match control {
+            Control::Play => (Method::Put, "/me/player/play".to_owned()),
+            Control::Pause => (Method::Put, "/me/player/pause".to_owned()),
+            Control::Next => (Method::Post, "/me/player/next".to_owned()),
+            Control::Previous => (Method::Post, "/me/player/previous".to_owned()),
+            Control::Seek(position_ms) => (
+                Method::Put,
+                format!("/me/player/seek?position_ms={position_ms}"),
+            ),
+            Control::Volume(percent) => (
+                Method::Put,
+                format!("/me/player/volume?volume_percent={percent}"),
+            ),
+        };
+        self.send(method, &path, None, Lane::P0, cancel).await
     }
 }
 

@@ -1,0 +1,136 @@
+import { Theme } from "../theme.slint";
+import { Player, DeviceRow } from "../player.slint";
+import { Icon, Icons } from "icon.slint";
+import { IconButton } from "icon-button.slint";
+
+// One device in the picker: its name, what it is, and a mark while it plays.
+component DeviceEntry inherits Rectangle {
+    in property <DeviceRow> device;
+    callback clicked();
+
+    height: Theme.row-height;
+    border-radius: Theme.radius-md;
+    background: touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: list-item;
+    accessible-label: root.device.name;
+    accessible-item-selected: root.device.active;
+    accessible-action-default => { root.clicked(); }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-3;
+        spacing: Theme.space-3;
+
+        VerticalLayout {
+            alignment: center;
+
+            Icon {
+                commands: Icons.devices;
+                width: Theme.icon-md;
+                height: Theme.icon-md;
+                fill: root.device.active ? Theme.text : Theme.text-secondary;
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Theme.space-1;
+
+            Text {
+                text: root.device.name;
+                overflow: elide;
+                font-size: Theme.text-body;
+                font-weight: root.device.active ? Theme.weight-semibold : Theme.weight-regular;
+                color: Theme.text;
+            }
+
+            Text {
+                text: root.device.detail;
+                overflow: elide;
+                font-size: Theme.text-small;
+                color: Theme.text-secondary;
+            }
+        }
+
+        if root.device.active: VerticalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: Theme.status-dot;
+                height: Theme.status-dot;
+                border-radius: self.width / 2;
+                background: Theme.success;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// A button that lists the Spotify Connect devices above it and moves playback to the one
+// chosen.
+export component DevicePicker inherits VerticalLayout {
+    alignment: center;
+
+    button := IconButton {
+        icon: Icons.devices;
+        label: "Devices";
+        icon-size: Theme.icon-sm;
+        selected: Player.remote-device != "";
+        clicked => {
+            Player.list-devices();
+            popup.show();
+        }
+    }
+
+    popup := PopupWindow {
+        width: Theme.devices-width;
+        height: max(1, Player.devices.length) * Theme.row-height + Theme.tile-caption + 2 * Theme.space-2;
+        x: button.x + button.width - self.width;
+        y: button.y - self.height - Theme.space-2;
+
+        Rectangle {
+            border-radius: Theme.radius-lg;
+            background: Theme.panel;
+            border-width: Theme.hairline;
+            border-color: Theme.edge;
+
+            VerticalLayout {
+                padding: Theme.space-2;
+
+                Text {
+                    height: Theme.tile-caption;
+                    text: "Play On";
+                    vertical-alignment: center;
+                    x: Theme.space-3;
+                    font-size: Theme.text-caption;
+                    font-weight: Theme.weight-semibold;
+                    letter-spacing: Theme.tracking-label;
+                    color: Theme.text-secondary;
+                }
+
+                if Player.devices.length == 0: Text {
+                    height: Theme.row-height;
+                    text: "Looking for devices…";
+                    vertical-alignment: center;
+                    x: Theme.space-3;
+                    font-size: Theme.text-body;
+                    color: Theme.text-secondary;
+                }
+
+                for device in Player.devices: DeviceEntry {
+                    device: device;
+                    clicked => {
+                        Player.transfer(device.id);
+                        popup.close();
+                    }
+                }
+            }
+        }
+    }
+}

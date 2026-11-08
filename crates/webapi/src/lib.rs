@@ -8,7 +8,8 @@ mod gateway;
 mod lanes;
 mod metrics;
 
+pub use endpoints::Control;
 pub use error::Error;
 pub use gateway::{ApiGateway, BASE_URL, Deps};
-pub use lanes::Lane;
+pub use lanes::{Lane, Method};
 pub use metrics::Metrics;

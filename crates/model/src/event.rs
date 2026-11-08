@@ -1,4 +1,4 @@
-use crate::{Art, Entity, Hits, List, TrackId};
+use crate::{Art, Entity, Hits, List, TrackId, web};
 
 /// A track as the now-playing view shows it.
 #[derive(Debug)]
@@ -45,6 +45,9 @@ pub enum Event {
     Volume(u16),
     /// Hush became, or stopped being, the active Spotify Connect device.
     Active(bool),
+    /// The Web API said what plays on the active device; `None` when nothing does or it
+    /// could not be read.
+    Polled(Option<web::Player>),
     /// A service fell back to a degraded mode.
     Degraded(Degraded),
     /// Library sync is running: `done` of `total` entries of the list being read, both 0
