@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use model::List;
+use model::{List, TrackOrder};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::{Error, Store, db::unix_now};
@@ -50,6 +50,26 @@ impl Store {
     pub async fn list_keys(&self, list: List) -> Result<Vec<u32>, Error> {
         self.call(move |conn| {
             conn.prepare_cached("SELECT entity_key FROM list_item WHERE list_id = ?1 ORDER BY pos")?
+                .query_map([list_id(list)], |row| row.get(0))?
+                .collect()
+        })
+        .await
+    }
+
+    /// The keys of a list of tracks, in `order`.
+    pub async fn track_keys(&self, list: List, order: TrackOrder) -> Result<Vec<u32>, Error> {
+        let order = match order {
+            TrackOrder::Custom => "",
+            TrackOrder::NewestAdded => "l.added_at DESC NULLS LAST,",
+            TrackOrder::OldestAdded => "l.added_at ASC NULLS LAST,",
+            TrackOrder::Title => "t.name COLLATE NOCASE,",
+            TrackOrder::Artist => "t.artists COLLATE NOCASE, t.name COLLATE NOCASE,",
+        };
+        let sql = format!(
+            "SELECT l.entity_key FROM list_item l LEFT JOIN track t ON t.key = l.entity_key              WHERE l.list_id = ?1 ORDER BY {order} l.pos"
+        );
+        self.call(move |conn| {
+            conn.prepare_cached(&sql)?
                 .query_map([list_id(list)], |row| row.get(0))?
                 .collect()
         })

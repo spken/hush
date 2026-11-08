@@ -1,4 +1,4 @@
-use model::Playback;
+use model::{Playback, Sorting};
 use rusqlite::OptionalExtension;
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -6,6 +6,8 @@ use crate::{Error, Store};
 
 /// The `settings` row the playback settings live in.
 const PLAYBACK: &str = "playback";
+/// The `settings` row holding how the library orders playlists and songs.
+const SORTING: &str = "sorting";
 /// The `settings` row holding the Client ID of the user's Spotify app.
 const CLIENT_ID: &str = "client_id";
 
@@ -18,6 +20,16 @@ impl Store {
     /// Saves the playback settings.
     pub async fn save_playback(&self, playback: &Playback) -> Result<(), Error> {
         self.save_setting(PLAYBACK, playback).await
+    }
+
+    /// How the library orders playlists and songs, or the defaults when none was saved.
+    pub async fn sorting(&self) -> Result<Sorting, Error> {
+        Ok(self.setting(SORTING).await?.unwrap_or_default())
+    }
+
+    /// Saves how the library orders playlists and songs.
+    pub async fn save_sorting(&self, sorting: Sorting) -> Result<(), Error> {
+        self.save_setting(SORTING, &sorting).await
     }
 
     /// The Client ID of the user's Spotify app, if one was saved.

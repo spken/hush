@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use model::{
     SpotifyId,
-    catalog::{Album, Artist, Track},
+    catalog::{Album, Artist, PlaylistItem},
 };
 
 use crate::Error;
@@ -17,5 +17,5 @@ pub(crate) trait CatalogSource: Send + Sync {
     /// An artist with its top tracks and its albums and singles.
     fn artist(&self, id: SpotifyId) -> Fetch<'_, Artist>;
     /// A playlist's tracks, in order; episodes and local files are left out.
-    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<Track>>;
+    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<PlaylistItem>>;
 }

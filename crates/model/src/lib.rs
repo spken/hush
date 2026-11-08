@@ -18,5 +18,8 @@ pub use command::Command;
 pub use error::Error;
 pub use event::{Degraded, Event, Fetch, Track};
 pub use id::{SpotifyId, TrackId};
-pub use library::{AlbumRow, ArtistRow, Context, Entity, Hits, List, PlaylistRow, Route, TrackRow};
+pub use library::{
+    AlbumRow, ArtistRow, Context, Entity, Hits, List, PlaylistOrder, PlaylistRow, Route, Sorting,
+    TrackOrder, TrackRow,
+};
 pub use settings::{EQ_BANDS, OutputDevice, Playback};

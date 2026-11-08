@@ -22,6 +22,14 @@ pub struct Track {
     pub art: Art,
 }
 
+/// A track in a playlist.
+#[derive(Debug)]
+pub struct PlaylistItem {
+    pub track: Track,
+    /// When it was added, as ISO 8601 UTC text, where the source says.
+    pub added_at: Option<Box<str>>,
+}
+
 /// What kind of release an album is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlbumKind {

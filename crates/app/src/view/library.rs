@@ -1,8 +1,10 @@
 //! The library page: list keys and row text from the Controller, list choices and
 //! visible rows back to it.
 
-use model::{AlbumKind, AlbumRow, Command, Entity, List, PlaylistRow, TrackRow};
-use slint::{ComponentHandle, ModelRc, SharedString};
+use model::{
+    AlbumKind, AlbumRow, Command, Entity, List, PlaylistOrder, PlaylistRow, TrackOrder, TrackRow,
+};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use ui::{KeyListModel, Library, MainWindow};
 
 use super::{Loading, View, clock, count, int, thousands, with_list};
@@ -12,17 +14,37 @@ use crate::controller;
 #[derive(Debug)]
 pub(crate) enum Open {
     LikedSongs,
-    SavedAlbums,
     Playlist(PlaylistRow),
 }
 
+/// The orders the library offers for its playlists, as its sort menu names them.
+const ORDERS: [(PlaylistOrder, &str); 5] = [
+    (PlaylistOrder::Modified, "Recently Modified"),
+    (PlaylistOrder::Played, "Recently Played"),
+    (PlaylistOrder::Name, "Alphabetical"),
+    (PlaylistOrder::Creator, "Creator"),
+    (PlaylistOrder::Custom, "Custom Order"),
+];
+
+/// The orders the library offers for the songs of a list, as its sort menu names them.
+const TRACK_ORDERS: [(TrackOrder, &str); 5] = [
+    (TrackOrder::Custom, "Custom Order"),
+    (TrackOrder::NewestAdded, "Recently Added"),
+    (TrackOrder::OldestAdded, "Least Recently Added"),
+    (TrackOrder::Title, "Title"),
+    (TrackOrder::Artist, "Artist"),
+];
+
 impl View {
-    /// Shows the user's playlists.
-    pub(crate) fn playlists(&self, keys: Vec<u32>) {
+    /// Shows the user's playlists, the first `pinned` of them pinned and the rest in
+    /// `order`.
+    pub(crate) fn playlists(&self, keys: Vec<u32>, pinned: u32, order: PlaylistOrder) {
+        let order = index(&ORDERS, order);
         self.update(move |window| {
-            with_list(&window.global::<Library>().get_playlists(), |list| {
-                list.set_keys(keys);
-            });
+            let library = window.global::<Library>();
+            library.set_pinned_count(int(pinned));
+            library.set_order(order);
+            with_list(&library.get_playlists(), |list| list.set_keys(keys));
         });
     }
 
@@ -44,21 +66,13 @@ impl View {
         });
     }
 
-    /// Shows the saved albums.
-    pub(crate) fn saved_albums(&self, keys: Vec<u32>) {
+    /// Shows `open` beside the list of lists: its header and its tracks' keys in `order`,
+    /// which `loading` says may still be on their way.
+    pub(crate) fn open(&self, open: Open, keys: Vec<u32>, order: TrackOrder, loading: Loading) {
+        let order = index(&TRACK_ORDERS, order);
         self.update(move |window| {
             let library = window.global::<Library>();
-            let albums = u32::try_from(keys.len()).unwrap_or(u32::MAX);
-            library.set_albums_detail(count(albums, "album", "albums").into());
-            with_list(&library.get_albums(), |list| list.set_keys(keys));
-        });
-    }
-
-    /// Shows `open` beside the list of lists: its header and its tracks' keys, which
-    /// `loading` says may still be on their way.
-    pub(crate) fn open(&self, open: Open, keys: Vec<u32>, loading: Loading) {
-        self.update(move |window| {
-            let library = window.global::<Library>();
+            library.set_track_order(order);
             let entries = u32::try_from(keys.len()).unwrap_or(u32::MAX);
             let mut art = SharedString::default();
             let (key, title, detail, empty) = match open {
@@ -67,12 +81,6 @@ impl View {
                     "Liked Songs".into(),
                     count(entries, "song", "songs"),
                     "Songs you like on Spotify appear here.",
-                ),
-                Open::SavedAlbums => (
-                    -1,
-                    "Albums".into(),
-                    count(entries, "album", "albums"),
-                    "Albums you save on Spotify appear here.",
                 ),
                 Open::Playlist(playlist) => {
                     let songs = if playlist.synced {
@@ -99,9 +107,7 @@ impl View {
             library.set_open_detail(detail.into());
             library.set_open_art(art);
             library.set_open_empty(empty.into());
-            if key != -1 {
-                with_list(&library.get_tracks(), |list| list.set_keys(keys));
-            }
+            with_list(&library.get_tracks(), |list| list.set_keys(keys));
         });
     }
 
@@ -153,7 +159,6 @@ impl View {
                 })
                 .collect();
             for model in [
-                window.global::<Library>().get_albums(),
                 window.global::<ui::ArtistView>().get_albums(),
                 window.global::<ui::SearchView>().get_albums(),
             ] {
@@ -217,13 +222,31 @@ pub(super) fn kind(kind: AlbumKind) -> &'static str {
     }
 }
 
-/// The library list `key` names on the library page: 0 Liked Songs, -1 the saved albums,
-/// else a playlist.
+/// Where `order` is in a sort menu's `orders`, as a Slint `int`.
+fn index<T: Copy + PartialEq>(orders: &[(T, &str)], order: T) -> i32 {
+    (orders.iter())
+        .position(|(each, _)| *each == order)
+        .and_then(|index| i32::try_from(index).ok())
+        .unwrap_or(0)
+}
+
+/// The names in a sort menu's `orders`, for Slint.
+fn names<T>(orders: &[(T, &str)]) -> ModelRc<SharedString> {
+    let names: Vec<SharedString> = orders.iter().map(|&(_, name)| name.into()).collect();
+    ModelRc::new(VecModel::from(names))
+}
+
+/// The order at `index` of a sort menu's `orders`, if there is one.
+fn chosen<T: Copy>(orders: &[(T, &str)], index: i32) -> Option<T> {
+    let index = usize::try_from(index).ok()?;
+    orders.get(index).map(|&(order, _)| order)
+}
+
+/// The library list `key` names on the library page: 0 Liked Songs, else a playlist.
 fn list(key: i32) -> List {
     match u32::try_from(key) {
-        Ok(0) => List::LikedSongs,
-        Ok(key) => List::Playlist(key),
-        Err(_) => List::SavedAlbums,
+        Ok(key) if key > 0 => List::Playlist(key),
+        _ => List::LikedSongs,
     }
 }
 
@@ -234,10 +257,6 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
         controller,
         Entity::Track,
     ))));
-    library.set_albums(ModelRc::from(KeyListModel::new(super::load(
-        controller,
-        Entity::Album,
-    ))));
     library.set_playlists(ModelRc::from(KeyListModel::new(super::load(
         controller,
         Entity::Playlist,
@@ -246,8 +265,28 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
         controller,
         Entity::Playlist,
     ))));
+    library.set_orders(names(&ORDERS));
+    library.set_track_orders(names(&TRACK_ORDERS));
     let open = controller.clone();
     library.on_open(move |key| open.send(Command::OpenList(list(key))));
+    let sort = controller.clone();
+    library.on_sort(move |index| {
+        if let Some(order) = chosen(&ORDERS, index) {
+            sort.send(Command::SortPlaylists(order));
+        }
+    });
+    let sort_tracks = controller.clone();
+    library.on_sort_tracks(move |index| {
+        if let Some(order) = chosen(&TRACK_ORDERS, index) {
+            sort_tracks.send(Command::SortTracks(order));
+        }
+    });
+    let pin = controller.clone();
+    library.on_pin(move |key, pinned| {
+        if let Ok(key) = u32::try_from(key) {
+            pin.send(Command::PinPlaylist { key, pinned });
+        }
+    });
     library.on_play(super::play(controller, list));
     let sync = controller.clone();
     library.on_sync(move || sync.send(Command::SyncLibrary));

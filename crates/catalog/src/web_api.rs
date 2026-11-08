@@ -1,6 +1,6 @@
 use model::{
     AlbumKind, SpotifyId,
-    catalog::{Album, Artist, Credit, Track},
+    catalog::{Album, Artist, Credit, PlaylistItem, Track},
     web::{self, Added, Image, Named, Page},
 };
 use serde::de::DeserializeOwned;
@@ -105,14 +105,19 @@ impl CatalogSource for WebApi {
         })
     }
 
-    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<Track>> {
+    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<PlaylistItem>> {
         Box::pin(async move {
             let items: Vec<Added<web::Track>> = self
                 .rest(&format!("/playlists/{id}/items"), 0, PAGE)
                 .await?;
             Ok(items
                 .into_iter()
-                .filter_map(|added| track(added.item?))
+                .filter_map(|added| {
+                    Some(PlaylistItem {
+                        track: track(added.item?)?,
+                        added_at: added.added_at,
+                    })
+                })
                 .collect())
         })
     }

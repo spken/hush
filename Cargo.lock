@@ -660,6 +660,7 @@ dependencies = [
  "anyhow",
  "auth",
  "dotenvy",
+ "http",
  "kit",
  "librespot-core",
  "librespot-protocol",

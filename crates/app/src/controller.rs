@@ -20,7 +20,7 @@ use std::{
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
 use images::Images;
-use model::{Anchor, Art, Command, Degraded, Event, List, PictureKey, Playback, Route};
+use model::{Anchor, Art, Command, Degraded, Event, List, PictureKey, Playback, Route, Sorting};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{
@@ -114,6 +114,8 @@ struct Controller {
     syncing: Option<CancellationToken>,
     /// The list the library page shows.
     open: List,
+    /// How the library page orders playlists and songs, as saved.
+    sorting: Sorting,
     route: Route,
     /// The pages Back returns to, oldest first.
     history: Vec<Route>,
@@ -166,6 +168,7 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         fetches: HashMap::new(),
         syncing: None,
         open: List::LikedSongs,
+        sorting: Sorting::default(),
         route: Route::NowPlaying,
         history: Vec::new(),
         search: Search::new(),
@@ -330,11 +333,6 @@ impl Controller {
         library: Option<Library>,
         device: Result<(Device, Events), playback::Error>,
     ) -> Option<Events> {
-        if let Some(library) = library {
-            self.view.web_api(library.gateway.metrics());
-            self.library = Some(library);
-            self.sync(false);
-        }
         let events = match device {
             Ok((device, events)) => {
                 tracing::info!("\"Hush\" is in the Spotify Connect device list");
@@ -354,6 +352,12 @@ impl Controller {
         if !self.spclient {
             tracing::info!("HUSH_CATALOG is web-api; spclient is off for the catalog");
         }
+        // After the device, so the sync can read playlist times from its session.
+        if let Some(library) = library {
+            self.view.web_api(library.gateway.metrics());
+            self.library = Some(library);
+        }
+        self.sync(false);
         self.start_catalog();
         report(self.show_open().await);
         self.fetch_open();
@@ -436,12 +440,10 @@ impl Controller {
             } => report(self.play(list, start, shuffle).await),
             Command::Navigate(route) => self.navigate(route).await,
             Command::Back => self.back().await,
-            Command::OpenList(list) => {
-                self.forget_pictures();
-                self.open = list;
-                report(self.show_open().await);
-                self.fetch_open();
-            }
+            Command::OpenList(list) => self.open_list(list).await,
+            Command::SortPlaylists(order) => report(self.sort_playlists(order).await),
+            Command::SortTracks(order) => report(self.sort_tracks(order).await),
+            Command::PinPlaylist { key, pinned } => report(self.pin(key, pinned).await),
             Command::RowsVisible { entity, keys } => self.rows(entity, keys),
             Command::SyncLibrary => self.sync(true),
             Command::Search { query, now } => self.search(&query, now).await,

@@ -12,4 +12,4 @@ mod web_api;
 pub use error::Error;
 pub use search::search;
 pub use service::{CatalogService, Deps};
-pub use sync::{Library, sync};
+pub use sync::{Library, playlist_times, sync};

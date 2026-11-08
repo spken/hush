@@ -40,13 +40,21 @@ export struct PlaylistRow {
 }
 
 export global Library {
+    // The pinned playlists first, then the rest in the chosen order.
     in property <[PlaylistRow]> playlists;
+    // How many of `playlists` are pinned.
+    in property <int> pinned-count;
+    // The names of the orders playlists can be in, and the index of the chosen one.
+    in property <[string]> orders;
+    in property <int> order;
+    // The names of the orders the open list's songs can be in, and the index of the
+    // chosen one.
+    in property <[string]> track-orders;
+    in property <int> track-order;
     // The playlists played last, most recent first.
     in property <[PlaylistRow]> recent;
     in property <string> liked-detail;
-    in property <string> albums-detail;
-    // What the library page shows: 0 for Liked Songs, -1 for the saved albums, else the
-    // key of a playlist.
+    // What the library page shows: 0 for Liked Songs, else the key of a playlist.
     in property <int> open-key;
     in property <string> open-title;
     in property <string> open-detail;
@@ -55,12 +63,17 @@ export global Library {
     // What to say while the open list is empty.
     in property <string> open-empty;
     in property <[TrackRow]> tracks;
-    in property <[AlbumRow]> albums;
     in property <bool> syncing;
     in property <string> sync-status;
 
-    // Shows Liked Songs, the saved albums or a playlist, by `open-key`.
+    // Shows Liked Songs or a playlist, by `open-key`.
     callback open(int);
+    // Orders the playlists by the order at this index of `orders`.
+    callback sort(int);
+    // Orders the open list's songs by the order at this index of `track-orders`.
+    callback sort-tracks(int);
+    // Pins the playlist with this key, or with `false` unpins it.
+    callback pin(int, bool);
     // Plays the open list from the track with this key, or 0 for its top; shuffled or not.
     callback play(int, int, bool);
     callback sync();

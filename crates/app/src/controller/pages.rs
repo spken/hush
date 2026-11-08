@@ -1,7 +1,7 @@
 //! The Controller's catalog side: navigation, album and artist pages, catalog lookups and
 //! playing lists on Hush.
 
-use model::{Context, Entity, Event, Fetch, List, Route, TrackId};
+use model::{Context, Entity, Event, Fetch, List, Route, TrackId, TrackOrder};
 use tokio_util::sync::CancellationToken;
 
 use super::{Catalog, Controller, library::report};
@@ -134,6 +134,12 @@ impl Controller {
         shuffle: bool,
     ) -> Result<(), store::Error> {
         let context = match list {
+            // Spotify plays its own order, so another order plays as a list of tracks.
+            List::LikedSongs | List::Playlist(_) if self.sorting.tracks != TrackOrder::Custom => {
+                let keys = self.store.track_keys(list, self.sorting.tracks).await?;
+                let ids = self.store.ids(Entity::Track, keys).await?;
+                Some(Context::Tracks(ids.into()))
+            }
             List::LikedSongs => Some(Context::LikedSongs),
             List::Playlist(key) => {
                 (self.store.id(Entity::Playlist, key).await?).map(Context::Playlist)

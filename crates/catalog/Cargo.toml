@@ -6,6 +6,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+http = { workspace = true }
 kit = { workspace = true }
 librespot-core = { workspace = true }
 librespot-protocol = { workspace = true }

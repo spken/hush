@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use librespot_core::Session;
 use model::{
     Event, List, catalog,
     web::{self, Added, Page, Playlist},
@@ -11,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
 use crate::{
-    Error,
+    Error, spclient,
     web_api::{self, PAGE},
 };
 /// How old the last sync may get before the next one is due.
@@ -44,6 +45,14 @@ pub async fn sync(library: &Library, force: bool, cancel: &CancellationToken) ->
     sync.playlists().await?;
     tracing::info!("library synced");
     Ok(())
+}
+
+/// Records when the stored playlists last changed, from `session`'s spclient, which costs
+/// no Web API requests. Returns whether any time changed.
+pub async fn playlist_times(store: &Store, session: &Session) -> Result<bool, Error> {
+    Ok(store
+        .save_modified(spclient::modified(session).await?)
+        .await?)
 }
 
 async fn due(store: &Store) -> Result<bool, Error> {

@@ -32,6 +32,7 @@ librespot-metadata = { version = "=0.8.0", default-features = false }
 librespot-protocol = "=0.8.0"
 librespot-playback = { version = "=0.8.0", default-features = false, features = ["native-tls"] }
 memory-stats = "1.2.0"
+http = "1"
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }
 open = "5.4.5"
 protobuf = "3.7.2"

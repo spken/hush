@@ -1,6 +1,6 @@
 use model::{
     AlbumKind, AlbumRow, Art, ArtistRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
-    catalog::{Album, Artist, Credit, Track},
+    catalog::{Album, Artist, Credit, PlaylistItem, Track},
     web,
 };
 use rusqlite::{Connection, Row};
@@ -107,13 +107,20 @@ impl Store {
     pub async fn save_playlist_tracks(
         &self,
         key: u32,
-        tracks: Vec<Track>,
+        items: Vec<PlaylistItem>,
         snapshot: Box<str>,
     ) -> Result<(), Error> {
+        let (tracks, added): (Vec<Track>, Vec<_>) = (items.into_iter())
+            .map(|item| (item.track, item.added_at))
+            .unzip();
         self.call(move |conn| {
             in_transaction(conn, |conn| {
-                let tracks = upsert_tracks(conn, &tracks)?;
-                replace_list(conn, List::Playlist(key), &entries(tracks))?;
+                let keys = upsert_tracks(conn, &tracks)?;
+                let entries: Vec<Entry> = (keys.into_iter())
+                    .zip(added)
+                    .map(|(key, added_at)| Entry { key, added_at })
+                    .collect();
+                replace_list(conn, List::Playlist(key), &entries)?;
                 mark_synced(conn, List::Playlist(key), Some(&snapshot))
             })
         })

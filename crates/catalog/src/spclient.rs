@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use http::Method;
 use librespot_core::{Session, SpotifyUri, spotify_id::SpotifyId as LibrespotId};
 use librespot_protocol::{
     extended_metadata::{BatchedEntityRequest, EntityRequest, ExtensionQuery},
@@ -9,7 +10,7 @@ use librespot_protocol::{
 };
 use model::{
     AlbumKind, Art, SpotifyId,
-    catalog::{Album, Artist, Credit, Track},
+    catalog::{Album, Artist, Credit, PlaylistItem, Track},
 };
 use protobuf::{EnumOrUnknown, Message};
 
@@ -21,6 +22,8 @@ use crate::{
 /// Entities per `extended-metadata` request. 300 tracks answered in one request in testing;
 /// the limit is unknown.
 const BATCH: usize = 250;
+/// Playlists per page of the user's playlist list.
+const ROOTLIST_PAGE: usize = 500;
 /// Where Spotify serves pictures, by file ID.
 const IMAGE_CDN: &str = "https://i.scdn.co/image/";
 const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -131,7 +134,7 @@ impl CatalogSource for Spclient {
         })
     }
 
-    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<Track>> {
+    fn playlist(&self, id: SpotifyId) -> Fetch<'_, Vec<PlaylistItem>> {
         Box::pin(async move {
             let raw = self.session.spclient().get_playlist(&librespot(id)).await?;
             let raw = SelectedListContent::parse_from_bytes(&raw)?;
@@ -139,13 +142,82 @@ impl CatalogSource for Spclient {
             if contents.truncated() {
                 tracing::warn!(%id, "spclient sent part of a playlist");
             }
-            let tracks: Vec<String> = (contents.items.iter())
-                .map(|item| item.uri().to_owned())
-                .filter(|uri| uri.starts_with("spotify:track:"))
-                .collect();
-            self.tracks(&tracks).await
+            let mut added: HashMap<SpotifyId, i64> = HashMap::new();
+            let mut tracks = Vec::new();
+            for item in &contents.items {
+                let Some(track) = item.uri().strip_prefix("spotify:track:") else {
+                    continue;
+                };
+                if let Ok(track) = track.parse() {
+                    added.entry(track).or_insert(item.attributes.timestamp());
+                }
+                tracks.push(item.uri().to_owned());
+            }
+            let tracks = self.tracks(&tracks).await?;
+            Ok((tracks.into_iter())
+                .map(|track| {
+                    let added_at = (added.get(&track.id))
+                        .filter(|&&ms| ms > 0)
+                        .map(|&ms| iso_utc(ms));
+                    PlaylistItem { track, added_at }
+                })
+                .collect())
         })
     }
+}
+
+/// When each playlist in the user's library last changed, in Unix milliseconds, from the
+/// playlist list spclient keeps; playlists it gives no time for are left out.
+pub(crate) async fn modified(session: &Session) -> Result<Vec<(SpotifyId, i64)>, Error> {
+    let mut modified = Vec::new();
+    let mut from = 0;
+    loop {
+        let endpoint = format!(
+            "/playlist/v2/user/{}/rootlist?decorate=timestamp&from={from}&length={ROOTLIST_PAGE}",
+            session.username()
+        );
+        let raw = (session.spclient())
+            .request(&Method::GET, &endpoint, None, None)
+            .await?;
+        let raw = SelectedListContent::parse_from_bytes(&raw)?;
+        let contents = raw.contents.get_or_default();
+        modified.extend(
+            (contents.items.iter())
+                .zip(&contents.meta_items)
+                .filter_map(|(item, meta)| {
+                    let id = item.uri().strip_prefix("spotify:playlist:")?.parse().ok()?;
+                    (meta.timestamp() > 0).then_some((id, meta.timestamp()))
+                }),
+        );
+        from += contents.items.len();
+        if !contents.truncated() || contents.items.is_empty() {
+            return Ok(modified);
+        }
+    }
+}
+
+/// Unix milliseconds as ISO 8601 UTC text to the second, the form the Web API gives
+/// times in, so stored times compare as text.
+fn iso_utc(ms: i64) -> Box<str> {
+    let seconds = ms.div_euclid(1000);
+    let (days, time) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
+    // Days to a civil date, after Howard Hinnant's `civil_from_days`.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        time / 3600,
+        time / 60 % 60,
+        time % 60
+    )
+    .into()
 }
 
 fn librespot(id: SpotifyId) -> LibrespotId {

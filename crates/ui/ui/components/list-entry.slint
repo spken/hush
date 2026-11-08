@@ -1,15 +1,21 @@
 import { Theme } from "../theme.slint";
 import { Artwork } from "artwork.slint";
+import { Icons } from "icon.slint";
+import { IconButton } from "icon-button.slint";
 
 // A list in the library: a small art block, its name and one line of detail. It is marked
-// while open.
+// while open. A `pinnable` one shows a pin at its end while pinned or hovered.
 export component ListEntry inherits Rectangle {
     in property <string> title;
     in property <string> detail;
     in property <string> glyph;
     in property <string> art;
     in property <bool> selected;
+    in property <bool> pinnable;
+    in property <bool> pinned;
     callback clicked();
+    // Pins the list, or with `false` unpins it.
+    callback pin(bool);
 
     height: Theme.row-height;
     border-radius: Theme.radius-md;
@@ -22,7 +28,7 @@ export component ListEntry inherits Rectangle {
 
     HorizontalLayout {
         padding-left: Theme.space-2;
-        padding-right: Theme.space-3;
+        padding-right: root.pinnable ? Theme.button-sm + Theme.space-2 : Theme.space-3;
         spacing: Theme.space-3;
 
         VerticalLayout {
@@ -59,5 +65,19 @@ export component ListEntry inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+
+        // Inside the row's touch area, so hovering it keeps the row hovered.
+        if root.pinnable: IconButton {
+            x: parent.width - self.width - Theme.space-1;
+            y: (parent.height - self.height) / 2;
+            size: Theme.button-sm;
+            icon: Icons.pin;
+            icon-size: Theme.icon-sm;
+            label: root.pinned ? "Unpin" : "Pin";
+            tint: root.pinned ? Theme.text : Theme.text-secondary;
+            opacity: root.pinned || touch.has-hover ? 1 : 0;
+            animate opacity { duration: Theme.duration-fast; easing: ease-out; }
+            clicked => { root.pin(!root.pinned); }
+        }
     }
 }

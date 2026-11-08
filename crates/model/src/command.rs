@@ -1,4 +1,4 @@
-use crate::{Entity, List, PictureKey, Playback, Route};
+use crate::{Entity, List, PictureKey, Playback, PlaylistOrder, Route, TrackOrder};
 
 /// Something the user asked for in the UI, handled by the Controller.
 #[derive(Debug)]
@@ -31,6 +31,12 @@ pub enum Command {
     Back,
     /// Show a library list on the library page.
     OpenList(List),
+    /// Order the library's playlists this way from now on.
+    SortPlaylists(PlaylistOrder),
+    /// Order the songs of the list on the library page this way from now on.
+    SortTracks(TrackOrder),
+    /// Pin the playlist with this key to the top of the library, or with `false` unpin it.
+    PinPlaylist { key: u32, pinned: bool },
     /// Rows came into view without their text; load it for these keys.
     RowsVisible { entity: Entity, keys: Vec<u32> },
     /// Sync the library with Spotify now.

@@ -5,13 +5,12 @@ import { Nav } from "catalog.slint";
 import { Icons } from "components/icon.slint";
 import { PillButton } from "components/pill-button.slint";
 import { ListEntry } from "components/list-entry.slint";
-import { AlbumGrid } from "components/album-grid.slint";
-import { AlbumView } from "catalog.slint";
+import { MenuButton } from "components/menu-button.slint";
 import { PosterHeader } from "components/poster-header.slint";
 import { SongRow } from "components/song-row.slint";
 
-// The library: Liked Songs, the saved albums and the playlists on the left, the open
-// one's songs or albums beside them, set under a poster header.
+// The library: Liked Songs and the playlists, pinned ones first, on the left; the open
+// one's songs beside them, set under a poster header.
 export component LibraryPage inherits VerticalLayout {
     padding-top: Theme.space-6;
     padding-left: Theme.space-7;
@@ -65,21 +64,39 @@ export component LibraryPage inherits VerticalLayout {
                 clicked => { Library.open(0); }
             }
 
-            ListEntry {
-                title: "Albums";
-                detail: Library.albums-detail;
-                glyph: Icons.album;
-                selected: Library.open-key == -1;
-                clicked => { Library.open(-1); }
+            HorizontalLayout {
+                padding-top: Theme.space-4;
+                padding-left: Theme.space-2;
+                padding-bottom: Theme.space-1;
+
+                Text {
+                    horizontal-stretch: 1;
+                    text: "Playlists";
+                    vertical-alignment: center;
+                    font-size: Theme.text-caption;
+                    font-weight: Theme.weight-semibold;
+                    letter-spacing: Theme.tracking-label;
+                    color: Theme.text-secondary;
+                }
+
+                MenuButton {
+                    label: "Sort playlists";
+                    options: Library.orders;
+                    current: Library.order;
+                    chosen(index) => { Library.sort(index); }
+                }
             }
 
             ListView {
-                for playlist in Library.playlists: ListEntry {
+                for playlist[index] in Library.playlists: ListEntry {
                     title: playlist.name;
                     detail: playlist.detail;
                     art: playlist.art;
                     selected: playlist.key == Library.open-key;
+                    pinnable: true;
+                    pinned: index < Library.pinned-count;
                     clicked => { Library.open(playlist.key); }
+                    pin(pinned) => { Library.pin(playlist.key, pinned); }
                 }
             }
         }
@@ -88,38 +105,59 @@ export component LibraryPage inherits VerticalLayout {
             spacing: Theme.space-5;
 
             PosterHeader {
-                glyph: Library.open-key == 0 ? Icons.heart : Library.open-key == -1 ? Icons.album : Icons.note;
+                glyph: Library.open-key == 0 ? Icons.heart : Icons.note;
                 art: Library.open-art;
                 title: Library.open-title;
                 detail: Library.open-detail;
-                playable: Library.open-key != -1 && Library.tracks.length > 0;
+                playable: Library.tracks.length > 0;
                 play(shuffle) => { Library.play(Library.open-key, 0, shuffle); }
             }
 
-            if Library.open-key == -1 ? Library.albums.length == 0 : Library.tracks.length == 0: Text {
+            if Library.tracks.length == 0: Text {
                 text: Library.open-empty;
                 wrap: word-wrap;
                 font-size: Theme.text-body;
                 color: Theme.text-secondary;
             }
 
-            if Library.open-key == -1: AlbumGrid {
+            VerticalLayout {
                 vertical-stretch: 1;
-                albums: Library.albums;
-                open(key) => { Nav.open-album(key); }
-                play(key) => { AlbumView.play(key, 0, false); }
-            }
+                spacing: Theme.space-1;
 
-            if Library.open-key != -1: ListView {
-                // A newly opened list starts at its top.
-                property <int> open-key: Library.open-key;
-                changed open-key => { self.content-y = 0; }
+                if Library.tracks.length > 0: HorizontalLayout {
+                    padding-left: Theme.space-2;
 
-                vertical-stretch: 1;
-                for track in Library.tracks: SongRow {
-                    track: track;
-                    play => { Library.play(Library.open-key, track.key, false); }
-                    open-artist(key) => { Nav.open-artist(key); }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: "Songs";
+                        vertical-alignment: center;
+                        font-size: Theme.text-caption;
+                        font-weight: Theme.weight-semibold;
+                        letter-spacing: Theme.tracking-label;
+                        color: Theme.text-secondary;
+                    }
+
+                    MenuButton {
+                        label: "Sort songs";
+                        options: Library.track-orders;
+                        current: Library.track-order;
+                        chosen(index) => { Library.sort-tracks(index); }
+                    }
+                }
+
+                ListView {
+                    // A newly opened or reordered list starts at its top.
+                    property <int> open-key: Library.open-key;
+                    property <int> track-order: Library.track-order;
+                    changed open-key => { self.content-y = 0; }
+                    changed track-order => { self.content-y = 0; }
+
+                    vertical-stretch: 1;
+                    for track in Library.tracks: SongRow {
+                        track: track;
+                        play => { Library.play(Library.open-key, track.key, false); }
+                        open-artist(key) => { Nav.open-artist(key); }
+                    }
                 }
             }
         }

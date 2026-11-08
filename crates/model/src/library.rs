@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{AlbumKind, Art, SpotifyId};
 
 /// A list the database keeps in order.
@@ -17,6 +19,46 @@ pub enum List {
     ArtistTop(u32),
     /// The albums and singles of the artist with this key, newest first.
     ArtistAlbums(u32),
+}
+
+/// How the library orders the playlists the user has not pinned.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PlaylistOrder {
+    /// Changed last first.
+    #[default]
+    Modified,
+    /// Played last first.
+    Played,
+    /// By name.
+    Name,
+    /// By owner, then name.
+    Creator,
+    /// As the user arranged them in Spotify.
+    Custom,
+}
+
+/// How the library orders the songs of the list it shows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TrackOrder {
+    /// As the list is in Spotify.
+    #[default]
+    Custom,
+    /// Added last first.
+    NewestAdded,
+    /// Added first first.
+    OldestAdded,
+    /// By title.
+    Title,
+    /// By artist, then title.
+    Artist,
+}
+
+/// How the library orders its playlists and the songs of the list it shows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Sorting {
+    pub playlists: PlaylistOrder,
+    pub tracks: TrackOrder,
 }
 
 /// What a key names, and so which table it belongs to.
