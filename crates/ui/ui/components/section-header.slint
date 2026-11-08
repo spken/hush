@@ -1,0 +1,39 @@
+import { Theme } from "../theme.slint";
+
+// The title of a section of a page, with an optional text action at its end.
+export component SectionHeader inherits HorizontalLayout {
+    in property <string> title;
+    // The action's label, or "" for none.
+    in property <string> action;
+    callback clicked();
+
+    spacing: Theme.space-4;
+
+    Text {
+        horizontal-stretch: 1;
+        text: root.title;
+        vertical-alignment: center;
+        overflow: elide;
+        font-family: Theme.font-display;
+        font-size: Theme.text-subtitle;
+        font-weight: Theme.weight-bold;
+        color: Theme.text;
+    }
+
+    if root.action != "": Text {
+        text: root.action;
+        vertical-alignment: center;
+        font-size: Theme.text-small;
+        font-weight: Theme.weight-semibold;
+        color: touch.has-hover ? Theme.text : Theme.text-secondary;
+        animate color { duration: Theme.duration-fast; easing: ease-out; }
+        accessible-role: button;
+        accessible-label: root.action;
+        accessible-action-default => { root.clicked(); }
+
+        touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.clicked(); }
+        }
+    }
+}

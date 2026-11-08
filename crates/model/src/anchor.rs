@@ -35,7 +35,8 @@ impl Anchor {
             | Event::Syncing { .. }
             | Event::Synced
             | Event::ListChanged(_)
-            | Event::Fetched { .. } => return,
+            | Event::Fetched { .. }
+            | Event::Searched { .. } => return,
         };
         *self = Self {
             position_ms,

@@ -147,12 +147,13 @@ pub(crate) fn album(raw: web::Album) -> Option<Album> {
 }
 
 fn credits(artists: Vec<Named>) -> Vec<Credit> {
-    (artists.into_iter())
-        .filter_map(|artist| {
-            Some(Credit {
-                id: artist.id?.parse().ok()?,
-                name: artist.name.unwrap_or_default(),
-            })
-        })
-        .collect()
+    artists.into_iter().filter_map(credit).collect()
+}
+
+/// A Web API artist as the catalog names it; `None` without an ID.
+pub(crate) fn credit(artist: Named) -> Option<Credit> {
+    Some(Credit {
+        id: artist.id?.parse().ok()?,
+        name: artist.name.unwrap_or_default(),
+    })
 }

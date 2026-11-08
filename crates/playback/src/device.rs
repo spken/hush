@@ -13,7 +13,7 @@ use librespot_playback::{
     mixer::{Mixer, MixerConfig, NoOpVolume, softmixer::SoftMixer},
     player::{Player, PlayerEventChannel},
 };
-use model::{Context, Event, TrackId};
+use model::{Context, Event, SpotifyId, TrackId};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -119,12 +119,6 @@ impl Device {
         start: Option<TrackId>,
         shuffle: bool,
     ) -> Result<(), Error> {
-        let uri = match context {
-            Context::LikedSongs => format!("spotify:user:{}:collection", self.session.username()),
-            Context::Album(id) => format!("spotify:album:{id}"),
-            Context::Artist(id) => format!("spotify:artist:{id}"),
-            Context::Playlist(id) => format!("spotify:playlist:{id}"),
-        };
         let options = LoadRequestOptions {
             start_playing: true,
             seek_to: 0,
@@ -132,12 +126,21 @@ impl Device {
                 shuffle,
                 ..Options::default()
             })),
-            playing_track: start
-                .map(|TrackId(id)| PlayingTrack::Uri(format!("spotify:track:{id}"))),
+            playing_track: start.map(|TrackId(id)| PlayingTrack::Uri(uri("track", id))),
         };
-        Ok(self
-            .spirc
-            .load(LoadRequest::from_context_uri(uri, options))?)
+        let request = match context {
+            Context::LikedSongs => LoadRequest::from_context_uri(
+                format!("spotify:user:{}:collection", self.session.username()),
+                options,
+            ),
+            Context::Album(id) => LoadRequest::from_context_uri(uri("album", id), options),
+            Context::Artist(id) => LoadRequest::from_context_uri(uri("artist", id), options),
+            Context::Playlist(id) => LoadRequest::from_context_uri(uri("playlist", id), options),
+            Context::Tracks(ids) => {
+                LoadRequest::from_tracks(ids.iter().map(|&id| uri("track", id)).collect(), options)
+            }
+        };
+        Ok(self.spirc.load(request)?)
     }
 
     /// Pauses when playing, resumes when paused. Like every transport control, it does
@@ -194,4 +197,9 @@ impl fmt::Debug for Events {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Events").finish_non_exhaustive()
     }
+}
+
+/// The Spotify URI of the `kind` entity with ID `id`.
+fn uri(kind: &str, id: SpotifyId) -> String {
+    format!("spotify:{kind}:{id}")
 }

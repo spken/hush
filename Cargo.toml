@@ -32,6 +32,7 @@ memory-stats = "1.2.0"
 oauth2 = { version = "5.0.0", default-features = false, features = ["reqwest"] }
 open = "5.4.5"
 protobuf = "3.7.2"
+quick_cache = { version = "0.7.0", default-features = false }
 rtrb = "0.4.1"
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }

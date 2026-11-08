@@ -73,6 +73,17 @@ pub struct Count {
     pub total: Option<u32>,
 }
 
+/// `/search` results: a page for each type asked for. Spotify sends `null` for some
+/// entries.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Search {
+    pub tracks: Option<Page<Option<Track>>>,
+    pub artists: Option<Page<Option<Named>>>,
+    pub albums: Option<Page<Option<Album>>>,
+    pub playlists: Option<Page<Option<Playlist>>>,
+}
+
 /// A Spotify user: the signed-in one from `/me`, or a playlist's owner.
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]

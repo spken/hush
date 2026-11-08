@@ -85,7 +85,7 @@ impl Listed for Playlist {
 }
 
 /// Saves a page's items and returns their keys, in order.
-trait Save<T>: AsyncFn(&Store, Vec<T>) -> Result<Vec<u32>, store::Error> {}
+pub(crate) trait Save<T>: AsyncFn(&Store, Vec<T>) -> Result<Vec<u32>, store::Error> {}
 
 impl<T, F: AsyncFn(&Store, Vec<T>) -> Result<Vec<u32>, store::Error>> Save<T> for F {}
 

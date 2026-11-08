@@ -3,6 +3,7 @@
 
 mod library;
 mod pages;
+mod search;
 
 use std::{
     collections::HashMap,
@@ -21,7 +22,7 @@ use tokio::{sync::mpsc, task::JoinHandle, time};
 use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
-use self::library::report;
+use self::{library::report, search::Search};
 use crate::view::{Loading, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
@@ -94,6 +95,7 @@ struct Controller {
     route: Route,
     /// The pages Back returns to, oldest first.
     history: Vec<Route>,
+    search: Search,
 }
 
 async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
@@ -120,8 +122,10 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         open: List::LikedSongs,
         route: Route::NowPlaying,
         history: Vec::new(),
+        search: Search::new(),
     };
     controller.show_library().await;
+    controller.show_search();
 
     // The two browser logins share a callback port, so they must not overlap.
     let start = async {
@@ -307,6 +311,9 @@ impl Controller {
             }
             Command::RowsVisible { entity, keys } => report(self.rows(entity, keys).await),
             Command::SyncLibrary => self.sync(true),
+            Command::Search { query, now } => self.search(&query, now).await,
+            Command::SearchMore(entity) => self.search_more(entity),
+            Command::PlayFound(start) => report(self.play_found(start).await),
         }
     }
 
@@ -342,6 +349,7 @@ impl Controller {
             }
             Event::ListChanged(list) => report(self.list_changed(list).await),
             Event::Fetched { list, outcome } => report(self.fetched(list, outcome).await),
+            Event::Searched { query, more, found } => self.searched(query, more, found),
         }
     }
 }

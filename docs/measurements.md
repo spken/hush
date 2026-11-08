@@ -115,3 +115,22 @@ Play on OK Computer started "Airbag" on Hush, and Play on Today's Top Hits start
 first track, both with no other Spotify app open and 0 Web API requests. Still to check
 by hand in the app: browsing the same pages from the UI, and RSS with album and artist
 pages open.
+
+## M7 — Search (Nov 8, 2026)
+
+Library search on a copy of the database (4,383 Liked Songs, 4 saved albums, 85
+playlists), release build. Migration 0004 builds the FTS5 indexes from the existing rows in
+16–23 ms.
+
+| Query | Library matches | Time |
+| --- | --- | --- |
+| `radiohead` | 5 songs, 1 artist | 2.3 ms |
+| `beyonce` (matches "Beyoncé") | 2 songs, 1 artist | 1.8 ms |
+| `the` | 5 songs, 5 artists, 3 playlists | 2.5 ms |
+| no match | none | 0.2 ms |
+
+Before filtering with `+rowid IN (…)` the same queries took 90–230 ms. Insert and rename
+triggers were checked on the copy: a new liked song is found by title and artist at once,
+and after a rename only its new title matches. Still to check by hand in the app: typing
+"radiohead" at normal speed sends exactly 1 Web API request (debug overlay), and the same
+search within 10 minutes sends 0.

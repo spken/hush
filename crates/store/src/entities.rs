@@ -1,5 +1,5 @@
 use model::{
-    AlbumKind, AlbumRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
+    AlbumKind, AlbumRow, ArtistRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
     catalog::{Album, Artist, Credit, Track},
     web,
 };
@@ -21,6 +21,18 @@ impl Store {
     pub async fn save_albums(&self, albums: Vec<Album>) -> Result<Vec<u32>, Error> {
         self.call(move |conn| in_transaction(conn, |conn| upsert_albums(conn, &albums)))
             .await
+    }
+
+    /// Adds or renames artists and returns their keys, in order.
+    pub async fn save_artists(&self, artists: Vec<Credit>) -> Result<Vec<u32>, Error> {
+        self.call(move |conn| {
+            in_transaction(conn, |conn| {
+                (artists.iter())
+                    .map(|artist| upsert_artist(conn, artist))
+                    .collect()
+            })
+        })
+        .await
     }
 
     /// Adds or updates playlists, which all have an ID, and returns their keys, in order.
@@ -105,20 +117,49 @@ impl Store {
 
     /// The Spotify ID behind a key, if the key exists.
     pub async fn id(&self, entity: Entity, key: u32) -> Result<Option<SpotifyId>, Error> {
+        Ok(self.ids(entity, vec![key]).await?.pop())
+    }
+
+    /// The Spotify IDs behind keys, in order; keys that do not exist are left out.
+    pub async fn ids(&self, entity: Entity, keys: Vec<u32>) -> Result<Vec<SpotifyId>, Error> {
         let table = match entity {
             Entity::Track => "track",
             Entity::Album => "album",
             Entity::Artist => "artist",
             Entity::Playlist => "playlist",
         };
-        let id: Option<String> = self
+        let ids: Vec<String> = self
             .call(move |conn| {
-                conn.prepare_cached(&format!("SELECT id FROM {table} WHERE key = ?1"))?
-                    .query_row([key], |row| row.get(0))
-                    .optional()
+                rows(
+                    conn,
+                    &format!(
+                        "SELECT e.id FROM json_each(?1) j JOIN {table} e ON e.key = j.value \
+                         ORDER BY j.key"
+                    ),
+                    &keys,
+                    |row| row.get(0),
+                )
             })
             .await?;
-        Ok(id.and_then(|id| id.parse().ok()))
+        Ok(ids.iter().filter_map(|id| id.parse().ok()).collect())
+    }
+
+    /// The rows of these artists, in no particular order.
+    pub async fn artist_rows(&self, keys: Vec<u32>) -> Result<Vec<ArtistRow>, Error> {
+        self.call(move |conn| {
+            rows(
+                conn,
+                "SELECT key, name FROM artist WHERE key IN (SELECT value FROM json_each(?1))",
+                &keys,
+                |row| {
+                    Ok(ArtistRow {
+                        key: row.get(0)?,
+                        name: boxed(row.get(1)?),
+                    })
+                },
+            )
+        })
+        .await
     }
 
     /// The name of the artist with key `key`, if the key exists.
@@ -258,15 +299,17 @@ fn upsert_albums(conn: &Connection, albums: &[Album]) -> rusqlite::Result<Vec<u3
 
 /// Adds or renames the first credited artist and returns its key.
 fn first_artist(conn: &Connection, artists: &[Credit]) -> rusqlite::Result<Option<u32>> {
-    let Some(artist) = artists.first() else {
-        return Ok(None);
-    };
+    (artists.first())
+        .map(|artist| upsert_artist(conn, artist))
+        .transpose()
+}
+
+fn upsert_artist(conn: &Connection, artist: &Credit) -> rusqlite::Result<u32> {
     conn.prepare_cached(
         "INSERT INTO artist (id, name) VALUES (?1, ?2) \
          ON CONFLICT (id) DO UPDATE SET name = excluded.name RETURNING key",
     )?
     .query_row((artist.id.to_string(), &*artist.name), |row| row.get(0))
-    .map(Some)
 }
 
 /// Runs `sql`, whose `?1` is the JSON array of `keys`, and maps every row it returns.

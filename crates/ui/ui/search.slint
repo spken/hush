@@ -1,0 +1,31 @@
+// Search state the Controller pushes to the UI, and the commands the UI sends back.
+
+import { TrackRow, ArtistRow, AlbumRow, PlaylistRow } from "library.slint";
+
+// The kinds of search result.
+export enum ResultKind { songs, artists, albums, playlists }
+
+export global SearchView {
+    // The search text, kept while the page is closed.
+    in-out property <string> query;
+    // What to say above the results, or "".
+    in property <string> status;
+    in property <[TrackRow]> songs;
+    in property <[ArtistRow]> artists;
+    in property <[AlbumRow]> albums;
+    in property <[PlaylistRow]> playlists;
+    // Whether Spotify has more of a kind than shown.
+    in property <bool> more-songs;
+    in property <bool> more-artists;
+    in property <bool> more-albums;
+    in property <bool> more-playlists;
+
+    // The search text changed.
+    callback edited(string);
+    // Enter was pressed: search Spotify at once.
+    callback accepted(string);
+    // Shows more results of a kind.
+    callback more(ResultKind);
+    // Plays the songs shown, from the one with this key.
+    callback play(int);
+}

@@ -1,17 +1,19 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Player, Format, Debug, Connection, EndpointRequests } from "player.slint";
-import { Library, TrackRow, AlbumRow, PlaylistRow } from "library.slint";
+import { Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow } from "library.slint";
 import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
+import { SearchView, ResultKind } from "search.slint";
 import { Rail } from "rail.slint";
 import { Controls } from "controls.slint";
 import { NowPlayingPage } from "now-playing-page.slint";
 import { LibraryPage } from "library-page.slint";
 import { AlbumPage } from "album-page.slint";
 import { ArtistPage } from "artist-page.slint";
+import { SearchPage } from "search-page.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind }
 
 export component MainWindow inherits Window {
     property <bool> immersive;
@@ -48,6 +50,10 @@ export component MainWindow inherits Window {
                 }
                 return accept;
             }
+            if (event.modifiers.control && (event.text == "f" || event.text == "F")) {
+                Nav.go(Page.search);
+                return accept;
+            }
             if (event.modifiers.control && (event.text == "r" || event.text == "R")) {
                 Library.sync();
                 return accept;
@@ -71,6 +77,10 @@ export component MainWindow inherits Window {
                     vertical-stretch: 1;
                     full-screen: root.immersive;
                     toggle-full-screen => { root.immersive = !root.immersive; }
+                }
+
+                if Nav.page == Page.search: SearchPage {
+                    vertical-stretch: 1;
                 }
 
                 if Nav.page == Page.library: LibraryPage {

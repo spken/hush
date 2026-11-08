@@ -37,15 +37,29 @@ pub enum Route {
     Album(u32),
     /// The artist with this key.
     Artist(u32),
+    Search,
 }
 
 /// What Spotify Connect plays from, so next and previous follow it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Context {
     LikedSongs,
     Album(SpotifyId),
     Artist(SpotifyId),
     Playlist(SpotifyId),
+    /// These tracks, in order.
+    Tracks(Box<[SpotifyId]>),
+}
+
+/// One kind of search result from Spotify's catalog: the keys found so far, in Spotify's
+/// order.
+#[derive(Debug, Clone, Default)]
+pub struct Hits {
+    pub keys: Vec<u32>,
+    /// The offset the next page starts at.
+    pub next: u32,
+    /// How many results Spotify has in all.
+    pub total: u32,
 }
 
 /// The text of a track row.
@@ -57,6 +71,13 @@ pub struct TrackRow {
     /// The first artist, where the track's source named its ID.
     pub artist_key: Option<u32>,
     pub duration_ms: u32,
+}
+
+/// The text of an artist row.
+#[derive(Debug)]
+pub struct ArtistRow {
+    pub key: u32,
+    pub name: Box<str>,
 }
 
 /// The text of an album row.

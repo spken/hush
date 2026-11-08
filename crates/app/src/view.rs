@@ -3,6 +3,7 @@
 
 mod catalog;
 mod library;
+mod search;
 
 use std::{fmt, time::Instant};
 
@@ -144,6 +145,7 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
         .on_clock(|position_ms| clock(position_ms.max(0).unsigned_abs()).into());
     library::bind(window, controller);
     catalog::bind(window, controller);
+    search::bind(window, controller);
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {

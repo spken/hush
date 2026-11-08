@@ -1,0 +1,161 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Library } from "library.slint";
+import { Nav, Page } from "catalog.slint";
+import { SearchView, ResultKind } from "search.slint";
+import { Icons } from "components/icon.slint";
+import { SearchField } from "components/search-field.slint";
+import { SectionHeader } from "components/section-header.slint";
+import { SongRow } from "components/song-row.slint";
+import { Tile } from "components/tile.slint";
+import { TileGrid } from "components/tile-grid.slint";
+
+// Search: a field under the page title, then songs, artists, albums and playlists, each
+// with library matches first and Show More for the rest of Spotify's catalog.
+export component SearchPage inherits VerticalLayout {
+    // New results start at the top.
+    property <string> query: SearchView.query;
+    changed query => { scroll.content-y = 0; }
+
+    padding-top: Theme.space-6;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-5;
+
+    init => { field.focus(); }
+
+    Text {
+        height: Theme.pill-height;
+        text: "Search";
+        vertical-alignment: center;
+        font-family: Theme.font-display;
+        font-size: Theme.text-title;
+        font-weight: Theme.weight-bold;
+        letter-spacing: Theme.tracking-display;
+        color: Theme.text;
+    }
+
+    HorizontalLayout {
+        alignment: start;
+
+        field := SearchField {
+            horizontal-stretch: 1;
+            max-width: Theme.field-max-width;
+            text <=> SearchView.query;
+            placeholder: "Songs, artists, albums and playlists";
+            edited(text) => { SearchView.edited(text); }
+            accepted(text) => { SearchView.accepted(text); }
+        }
+    }
+
+    if SearchView.status != "": Text {
+        text: SearchView.status;
+        wrap: word-wrap;
+        font-size: Theme.text-body;
+        color: Theme.text-secondary;
+    }
+
+    scroll := ScrollView {
+        vertical-stretch: 1;
+        content-width: self.visible-width;
+
+        VerticalLayout {
+            width: scroll.visible-width;
+            padding-bottom: Theme.space-6;
+            spacing: Theme.space-6;
+
+            if SearchView.songs.length > 0: VerticalLayout {
+                spacing: Theme.space-3;
+
+                SectionHeader {
+                    title: "Songs";
+                    action: SearchView.more-songs ? "Show More" : "";
+                    clicked => { SearchView.more(ResultKind.songs); }
+                }
+
+                VerticalLayout {
+                    for track in SearchView.songs: SongRow {
+                        track: track;
+                        play => { SearchView.play(track.key); }
+                        open-artist(key) => { Nav.open-artist(key); }
+                    }
+                }
+            }
+
+            if SearchView.artists.length > 0: VerticalLayout {
+                spacing: Theme.space-3;
+
+                SectionHeader {
+                    title: "Artists";
+                    action: SearchView.more-artists ? "Show More" : "";
+                    clicked => { SearchView.more(ResultKind.artists); }
+                }
+
+                artists := TileGrid {
+                    count: SearchView.artists.length;
+
+                    for artist[index] in SearchView.artists: Tile {
+                        x: artists.tile-x(index);
+                        y: artists.tile-y(index);
+                        width: artists.cell;
+                        title: artist.name;
+                        detail: "Artist";
+                        glyph: Icons.artist;
+                        round: true;
+                        clicked => { Nav.open-artist(artist.key); }
+                    }
+                }
+            }
+
+            if SearchView.albums.length > 0: VerticalLayout {
+                spacing: Theme.space-3;
+
+                SectionHeader {
+                    title: "Albums";
+                    action: SearchView.more-albums ? "Show More" : "";
+                    clicked => { SearchView.more(ResultKind.albums); }
+                }
+
+                albums := TileGrid {
+                    count: SearchView.albums.length;
+
+                    for album[index] in SearchView.albums: Tile {
+                        x: albums.tile-x(index);
+                        y: albums.tile-y(index);
+                        width: albums.cell;
+                        title: album.name;
+                        detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
+                        clicked => { Nav.open-album(album.key); }
+                    }
+                }
+            }
+
+            if SearchView.playlists.length > 0: VerticalLayout {
+                spacing: Theme.space-3;
+
+                SectionHeader {
+                    title: "Playlists";
+                    action: SearchView.more-playlists ? "Show More" : "";
+                    clicked => { SearchView.more(ResultKind.playlists); }
+                }
+
+                playlists := TileGrid {
+                    count: SearchView.playlists.length;
+
+                    for playlist[index] in SearchView.playlists: Tile {
+                        x: playlists.tile-x(index);
+                        y: playlists.tile-y(index);
+                        width: playlists.cell;
+                        title: playlist.name;
+                        detail: playlist.detail;
+                        glyph: Icons.note;
+                        clicked => {
+                            Library.open(playlist.key);
+                            Nav.go(Page.library);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

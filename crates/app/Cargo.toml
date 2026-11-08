@@ -16,6 +16,7 @@ femtovg = ["ui/femtovg"]
 anyhow = { workspace = true }
 auth = { workspace = true }
 catalog = { workspace = true }
+kit = { workspace = true }
 dotenvy = { workspace = true }
 memory-stats = { workspace = true }
 model = { workspace = true }

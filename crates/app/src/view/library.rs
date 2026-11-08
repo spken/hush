@@ -112,6 +112,7 @@ impl View {
                 window.global::<Library>().get_tracks(),
                 window.global::<ui::AlbumView>().get_tracks(),
                 window.global::<ui::ArtistView>().get_top_tracks(),
+                window.global::<ui::SearchView>().get_songs(),
             ] {
                 with_list(&model, |list| list.fill(rows.iter().cloned()));
             }
@@ -140,17 +141,18 @@ impl View {
             for model in [
                 window.global::<Library>().get_albums(),
                 window.global::<ui::ArtistView>().get_albums(),
+                window.global::<ui::SearchView>().get_albums(),
             ] {
                 with_list(&model, |list| list.fill(rows.iter().cloned()));
             }
         });
     }
 
-    /// Fills in loaded playlist rows.
+    /// Fills in loaded playlist rows wherever they were asked for.
     pub(crate) fn playlist_rows(&self, rows: Vec<PlaylistRow>) {
         self.update(move |window| {
-            with_list(&window.global::<Library>().get_playlists(), |list| {
-                list.fill(rows.into_iter().map(|row| {
+            let rows: Vec<(u32, ui::PlaylistRow)> = (rows.into_iter())
+                .map(|row| {
                     let detail = format!("{} · {}", row.owner, count(row.tracks, "song", "songs"));
                     let playlist = ui::PlaylistRow {
                         key: int(row.key),
@@ -158,8 +160,14 @@ impl View {
                         detail: detail.into(),
                     };
                     (row.key, playlist)
-                }));
-            });
+                })
+                .collect();
+            for model in [
+                window.global::<Library>().get_playlists(),
+                window.global::<ui::SearchView>().get_playlists(),
+            ] {
+                with_list(&model, |list| list.fill(rows.iter().cloned()));
+            }
         });
     }
 

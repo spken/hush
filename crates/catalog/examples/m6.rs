@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
         Context::Album(ALBUM.parse()?),
         Context::Playlist(PLAYLIST.parse()?),
     ] {
-        device.play(context, None, false)?;
+        device.play(context.clone(), None, false)?;
         let track = started(&mut events).await?;
         tracing::info!(?context, track, "playing on Hush");
     }

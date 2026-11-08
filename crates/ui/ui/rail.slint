@@ -27,11 +27,23 @@ export component Rail inherits VerticalLayout {
     HorizontalLayout {
         alignment: center;
         IconButton {
+            icon: Icons.search;
+            label: "Search";
+            size: Theme.button-md;
+            icon-size: Theme.icon-sm;
+            selected: Nav.page == Page.search;
+            clicked => { Nav.go(Page.search); }
+        }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        IconButton {
             icon: Icons.library;
             label: "Library";
             size: Theme.button-md;
             icon-size: Theme.icon-sm;
-            selected: Nav.page != Page.now-playing;
+            selected: Nav.page == Page.library || Nav.page == Page.album || Nav.page == Page.artist;
             clicked => { Nav.go(Page.library); }
         }
     }

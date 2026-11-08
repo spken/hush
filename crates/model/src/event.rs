@@ -1,4 +1,4 @@
-use crate::{List, TrackId};
+use crate::{Entity, Hits, List, TrackId};
 
 /// A track as the now-playing view shows it.
 #[derive(Debug)]
@@ -55,4 +55,11 @@ pub enum Event {
     ListChanged(List),
     /// A catalog lookup of a list ended.
     Fetched { list: List, outcome: Fetch },
+    /// A search of Spotify's catalog for `query` ended: its first page, or with `more` a
+    /// further page of one kind; `None` when it failed.
+    Searched {
+        query: Box<str>,
+        more: bool,
+        found: Option<Vec<(Entity, Hits)>>,
+    },
 }

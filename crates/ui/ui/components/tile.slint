@@ -1,23 +1,26 @@
 import { Theme } from "../theme.slint";
-import { AlbumRow } from "../library.slint";
 import { Icons } from "icon.slint";
 import { Artwork } from "artwork.slint";
 
-// An album in a grid: its cover with the name and detail beneath. The cover brightens
-// under the pointer.
-export component AlbumTile inherits VerticalLayout {
-    in property <AlbumRow> album;
+// An album, artist or playlist in a grid: its art with a title and a line of detail
+// beneath. The art brightens under the pointer; a round one has its caption centred.
+export component Tile inherits VerticalLayout {
+    in property <string> title;
+    in property <string> detail;
+    in property <string> glyph: Icons.album;
+    in property <bool> round;
     callback clicked();
 
     spacing: Theme.space-2;
     accessible-role: button;
-    accessible-label: root.album.name;
+    accessible-label: root.title;
     accessible-action-default => { root.clicked(); }
 
     Artwork {
         size: root.width;
         large: true;
-        glyph: Icons.album;
+        round: root.round;
+        glyph: root.glyph;
 
         Rectangle {
             border-radius: parent.border-radius;
@@ -36,7 +39,8 @@ export component AlbumTile inherits VerticalLayout {
         spacing: Theme.space-1;
 
         Text {
-            text: root.album.name;
+            text: root.title;
+            horizontal-alignment: root.round ? center : left;
             overflow: elide;
             font-size: Theme.text-body;
             font-weight: Theme.weight-semibold;
@@ -44,7 +48,8 @@ export component AlbumTile inherits VerticalLayout {
         }
 
         Text {
-            text: root.album.year == "" ? root.album.kind : root.album.year + " · " + root.album.kind;
+            text: root.detail;
+            horizontal-alignment: root.round ? center : left;
             overflow: elide;
             font-size: Theme.text-small;
             color: Theme.text-secondary;

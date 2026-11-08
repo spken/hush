@@ -32,7 +32,7 @@ pub struct StalePlaylist {
 
 /// The `list_id` a list is stored under. A playlist's tracks use its key; the lists of
 /// other entities add their key to a multiple of 2^32, which no key reaches.
-fn list_id(list: List) -> i64 {
+pub(crate) fn list_id(list: List) -> i64 {
     const SPAN: i64 = 1 << 32;
     match list {
         List::LikedSongs => -1,

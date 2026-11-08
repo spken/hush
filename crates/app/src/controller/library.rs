@@ -119,8 +119,7 @@ impl Controller {
             Entity::Playlist => self
                 .view
                 .playlist_rows(self.store.playlist_rows(keys).await?),
-            // No list shows artists as rows.
-            Entity::Artist => {}
+            Entity::Artist => self.view.artist_rows(self.store.artist_rows(keys).await?),
         }
         Ok(())
     }

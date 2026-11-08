@@ -1,0 +1,23 @@
+import { Theme } from "../theme.slint";
+
+// Room for `count` tiles in as many equal columns as fit. Each tile takes `cell` as its
+// width and its place from `tile-x(index)` and `tile-y(index)`.
+export component TileGrid inherits Rectangle {
+    in property <int> count;
+    out property <length> cell: (self.width - (self.columns - 1) * self.gap) / self.columns;
+    property <length> gap: Theme.space-5;
+    property <int> columns: max(1, floor((self.width + self.gap) / (Theme.art-tile + self.gap)));
+    property <length> row-height: self.cell + Theme.space-2 + Theme.tile-caption + Theme.space-3;
+
+    height: ceil(root.count / self.columns) * self.row-height;
+
+    public pure function tile-x(index: int) -> length {
+        mod(index, root.columns) * (root.cell + root.gap)
+    }
+
+    public pure function tile-y(index: int) -> length {
+        floor(index / root.columns) * root.row-height
+    }
+
+    @children
+}

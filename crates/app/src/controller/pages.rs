@@ -15,7 +15,7 @@ impl Controller {
     /// top-level pages start the history afresh.
     pub(super) async fn navigate(&mut self, route: Route) {
         match route {
-            Route::NowPlaying | Route::Library => self.history.clear(),
+            Route::NowPlaying | Route::Library | Route::Search => self.history.clear(),
             Route::Album(_) | Route::Artist(_) if route == self.route => return,
             Route::Album(_) | Route::Artist(_) => {
                 if self.history.len() == HISTORY {
@@ -41,7 +41,7 @@ impl Controller {
         let list = match self.route {
             Route::Album(key) => List::Album(key),
             Route::Artist(key) => List::ArtistTop(key),
-            Route::NowPlaying | Route::Library => return,
+            Route::NowPlaying | Route::Library | Route::Search => return,
         };
         self.fetch(list);
         report(self.show_page().await);
@@ -71,7 +71,7 @@ impl Controller {
                 let loading = self.loading(List::ArtistTop(key));
                 self.view.artist(key, name, lists, loading);
             }
-            Route::NowPlaying | Route::Library => {}
+            Route::NowPlaying | Route::Library | Route::Search => {}
         }
         Ok(())
     }
@@ -143,6 +143,17 @@ impl Controller {
             tracing::warn!(?list, "nothing to play");
             return Ok(());
         };
+        self.play_context(context, start, shuffle).await
+    }
+
+    /// Plays `context` on Hush from the track with key `start`, or from its top, making
+    /// Hush the active device first.
+    pub(super) async fn play_context(
+        &mut self,
+        context: Context,
+        start: Option<u32>,
+        shuffle: bool,
+    ) -> Result<(), store::Error> {
         let start = match start {
             Some(key) => self.store.id(Entity::Track, key).await?.map(TrackId),
             None => None,

@@ -31,4 +31,11 @@ pub enum Command {
     RowsVisible { entity: Entity, keys: Vec<u32> },
     /// Sync the library with Spotify now.
     SyncLibrary,
+    /// The search text changed, or with `now` the user pressed Enter: search the library at
+    /// once and Spotify's catalog after a pause in typing, or at once with `now`.
+    Search { query: Box<str>, now: bool },
+    /// Show the next page of one kind of search result.
+    SearchMore(Entity),
+    /// Play the songs the search found, from the one with this key.
+    PlayFound(u32),
 }
