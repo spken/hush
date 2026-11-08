@@ -1,17 +1,9 @@
 import { Theme } from "../theme.slint";
 import { Art } from "../art.slint";
 
-// The canvas the current art floods: a blurred copy of the cover stretched over the
-// window, under a shade of the cover's own colour. Two layers cross-fade when the art
-// changes.
+// The canvas the current art floods: a blurred, shaded copy of the cover stretched over
+// the window. Two layers cross-fade when the art changes.
 export component Backdrop inherits Rectangle {
-    // The cover's colour, steeped in the canvas and made translucent; the canvas alone
-    // without a cover.
-    pure function shade(colour: color) -> color {
-        colour.alpha == 0 ? transparent
-            : colour.mix(Theme.canvas, Theme.backdrop-tint).with-alpha(Theme.backdrop-shade)
-    }
-
     Image {
         width: 100%;
         height: 100%;
@@ -30,10 +22,5 @@ export component Backdrop inherits Rectangle {
         image-rendering: smooth;
         opacity: Art.backdrop-b-front ? 1 : 0;
         animate opacity { duration: Theme.duration-normal; easing: ease-out; }
-    }
-
-    Rectangle {
-        background: Art.backdrop-b-front ? root.shade(Art.backdrop-b-colour) : root.shade(Art.backdrop-a-colour);
-        animate background { duration: Theme.duration-normal; easing: ease-out; }
     }
 }

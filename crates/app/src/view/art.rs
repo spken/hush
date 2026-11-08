@@ -5,8 +5,8 @@ use std::{cell::RefCell, collections::HashSet, mem, rc::Rc, time::Duration};
 
 use kit::{ByteLru, Weigh};
 use model::{Art as Sizes, Command, PictureKey};
-use slint::{Color, ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer, Timer};
-use ui::{Art, MainWindow};
+use slint::{Color, ComponentHandle, Image, Rgb8Pixel, Rgba8Pixel, SharedPixelBuffer, Timer};
+use ui::{Art, MainWindow, Theme};
 
 use super::{View, int};
 use crate::controller;
@@ -62,21 +62,15 @@ impl View {
     /// what it showed.
     pub(crate) fn backdrop(&self, picture: Option<images::Picture>) {
         self.update(move |window| {
-            let (image, colour) = picture.map_or_else(
-                || (Image::default(), Color::from_argb_u8(0, 0, 0, 0)),
-                |picture| {
-                    let [red, green, blue] = picture.average;
-                    (image(&picture), Color::from_rgb_u8(red, green, blue))
-                },
-            );
+            let image = picture.map_or_else(Image::default, |picture| {
+                shaded(&window.global::<Theme>(), &picture)
+            });
             let art = window.global::<Art>();
             let to_b = !art.get_backdrop_b_front();
             if to_b {
                 art.set_backdrop_b(image);
-                art.set_backdrop_b_colour(colour);
             } else {
                 art.set_backdrop_a(image);
-                art.set_backdrop_a_colour(colour);
             }
             art.set_backdrop_b_front(to_b);
         });
@@ -90,6 +84,34 @@ fn image(picture: &images::Picture) -> Image {
         picture.width,
         picture.height,
     ))
+}
+
+/// A blurred cover under the theme's shade of its own colour, as one opaque picture. The
+/// software renderer copies opaque pixels where it would blend a translucent shade over
+/// the whole window on every redraw.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a blend of two bytes stays in 0..=255"
+)]
+fn shaded(theme: &Theme, picture: &images::Picture) -> Image {
+    let [red, green, blue] = picture.average;
+    let shade =
+        Color::from_rgb_u8(red, green, blue).mix(&theme.get_canvas(), theme.get_backdrop_tint());
+    let opacity = theme.get_backdrop_shade();
+    let over = |under: u8, shade: u8| {
+        (f32::from(under) + (f32::from(shade) - f32::from(under)) * opacity).round() as u8
+    };
+    let mut pixels = SharedPixelBuffer::<Rgb8Pixel>::new(picture.width, picture.height);
+    let cover = picture.rgba.as_chunks::<4>().0;
+    for (pixel, [r, g, b, _]) in pixels.make_mut_slice().iter_mut().zip(cover) {
+        *pixel = Rgb8Pixel {
+            r: over(*r, shade.red()),
+            g: over(*g, shade.green()),
+            b: over(*b, shade.blue()),
+        };
+    }
+    Image::from_rgb8(pixels)
 }
 
 /// Answers the UI's requests for pictures from the cache, and asks the Controller for the

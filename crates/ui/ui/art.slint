@@ -3,13 +3,11 @@
 export global Art {
     // Bumped whenever a picture arrives, so bindings that asked for one ask again.
     in-out property <int> revision;
-    // The canvas behind everything: two layers of the current cover, blurred, so a new
-    // cover can cross-fade over the old one, each with its average colour (fully
-    // transparent for none).
+    // The canvas behind everything: two layers of the current cover, blurred and under a
+    // shade of its own colour (`Theme.backdrop-tint`, `Theme.backdrop-shade`), so a new
+    // cover can cross-fade over the old one; empty for none.
     in property <image> backdrop-a;
-    in property <color> backdrop-a-colour: transparent;
     in property <image> backdrop-b;
-    in property <color> backdrop-b-colour: transparent;
     in property <bool> backdrop-b-front;
 
     // The picture `art` describes, `px` pixels square with corners of the radius given in
