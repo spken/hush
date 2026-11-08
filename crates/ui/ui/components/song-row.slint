@@ -1,0 +1,72 @@
+import { Theme } from "../theme.slint";
+import { TrackRow } from "../library.slint";
+
+// A track in a list: art, title over artists, album and length. It lights up under the
+// pointer.
+export component SongRow inherits Rectangle {
+    in property <TrackRow> track;
+
+    height: Theme.row-height;
+    border-radius: Theme.radius-md;
+    background: touch.has-hover ? Theme.hover : transparent;
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: list-item;
+    accessible-label: root.track.title + ", " + root.track.artists;
+
+    touch := TouchArea {}
+
+    HorizontalLayout {
+        padding-left: Theme.space-2;
+        padding-right: Theme.space-4;
+        spacing: Theme.space-4;
+
+        VerticalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: Theme.art-row;
+                height: Theme.art-row;
+                border-radius: Theme.radius-sm;
+                background: Theme.art;
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 3;
+            alignment: center;
+            spacing: Theme.space-1;
+
+            Text {
+                text: root.track.title;
+                overflow: elide;
+                font-size: Theme.text-body;
+                color: Theme.text;
+            }
+
+            Text {
+                text: root.track.artists;
+                overflow: elide;
+                font-size: Theme.text-small;
+                color: Theme.text-secondary;
+            }
+        }
+
+        Text {
+            horizontal-stretch: 2;
+            text: root.track.album;
+            overflow: elide;
+            vertical-alignment: center;
+            font-size: Theme.text-small;
+            color: Theme.text-secondary;
+        }
+
+        Text {
+            width: Theme.time-width;
+            text: root.track.duration;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            font-size: Theme.text-small;
+            color: Theme.text-tertiary;
+        }
+    }
+}

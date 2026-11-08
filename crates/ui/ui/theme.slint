@@ -24,6 +24,7 @@ export global Theme {
     out property <color> danger: #ff453a;
 
     // Spacing on a 4 px grid.
+    out property <length> space-1: 4px;
     out property <length> space-2: 8px;
     out property <length> space-3: 12px;
     out property <length> space-4: 16px;
@@ -34,6 +35,7 @@ export global Theme {
 
     // Corner radii.
     out property <length> radius-sm: 4px;
+    out property <length> radius-md: 8px;
     out property <length> radius-lg: 12px;
 
     // Type scale: poster-size display over a quiet body.
@@ -45,8 +47,10 @@ export global Theme {
     out property <length> text-body: 13px;
     out property <length> text-subtitle: 22px;
     out property <length> text-title: 30px;
+    out property <length> text-display: 48px;
     out property <length> text-poster: 64px;
     out property <length> tracking-display: -1.5px;
+    out property <int> weight-regular: 400;
     out property <int> weight-semibold: 600;
     out property <int> weight-bold: 700;
 
@@ -64,10 +68,14 @@ export global Theme {
     out property <length> debug-width: 248px;
     out property <length> time-width: 40px;
     out property <length> hairline: 1px;
+    out property <length> sidebar-width: 280px;
+    out property <length> row-height: 56px;
 
     // Artwork.
     out property <length> art-min: 200px;
     out property <length> art-max: 640px;
+    out property <length> art-header: 176px;
+    out property <length> art-row: 40px;
     out property <float> art-glyph-scale: 0.3;
 
     // Controls.

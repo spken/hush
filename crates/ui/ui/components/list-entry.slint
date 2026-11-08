@@ -1,0 +1,70 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "icon.slint";
+
+// A list in the library: a small art block, its name and one line of detail. It is marked
+// while open.
+export component ListEntry inherits Rectangle {
+    in property <string> title;
+    in property <string> detail;
+    in property <string> glyph;
+    in property <bool> selected;
+    callback clicked();
+
+    height: Theme.row-height;
+    border-radius: Theme.radius-md;
+    background: root.selected ? Theme.selected : touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
+    animate background { duration: Theme.duration-fast; easing: ease-out; }
+    accessible-role: list-item;
+    accessible-label: root.title;
+    accessible-item-selected: root.selected;
+    accessible-action-default => { root.clicked(); }
+
+    HorizontalLayout {
+        padding-left: Theme.space-2;
+        padding-right: Theme.space-3;
+        spacing: Theme.space-3;
+
+        VerticalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: Theme.art-row;
+                height: Theme.art-row;
+                border-radius: Theme.radius-sm;
+                background: Theme.art;
+
+                if root.glyph != "": Icon {
+                    commands: root.glyph;
+                    width: Theme.icon-sm;
+                    height: Theme.icon-sm;
+                    fill: Theme.text-secondary;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: Theme.space-1;
+
+            Text {
+                text: root.title;
+                overflow: elide;
+                font-size: Theme.text-body;
+                font-weight: root.selected ? Theme.weight-semibold : Theme.weight-regular;
+                color: Theme.text;
+            }
+
+            Text {
+                text: root.detail;
+                overflow: elide;
+                font-size: Theme.text-small;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

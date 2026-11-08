@@ -13,6 +13,7 @@ kit = { path = "crates/kit" }
 store = { path = "crates/store" }
 auth = { path = "crates/auth" }
 webapi = { path = "crates/webapi" }
+catalog = { path = "crates/catalog" }
 playback = { path = "crates/playback" }
 ui = { path = "crates/ui" }
 

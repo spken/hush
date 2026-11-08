@@ -8,7 +8,10 @@ use rusqlite::Connection;
 use tokio::sync::{mpsc, oneshot};
 
 /// Schema changes in order; a database at `user_version` n has the first n applied.
-const MIGRATIONS: [&str; 1] = [include_str!("../migrations/0001_http_cache.sql")];
+const MIGRATIONS: [&str; 2] = [
+    include_str!("../migrations/0001_http_cache.sql"),
+    include_str!("../migrations/0002_library.sql"),
+];
 
 /// Ways a database call can fail.
 #[derive(Debug, thiserror::Error)]

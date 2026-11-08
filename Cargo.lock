@@ -159,6 +159,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "auth",
+ "catalog",
  "dotenvy",
  "memory-stats",
  "model",
@@ -638,6 +639,20 @@ dependencies = [
  "rustix 0.38.44",
  "wayland-backend",
  "wayland-client",
+]
+
+[[package]]
+name = "catalog"
+version = "0.0.0"
+dependencies = [
+ "model",
+ "serde",
+ "store",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "webapi",
 ]
 
 [[package]]
@@ -5834,6 +5849,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "store"
 version = "0.0.0"
 dependencies = [
+ "model",
  "rusqlite",
  "thiserror 2.0.21",
  "tokio",

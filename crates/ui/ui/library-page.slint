@@ -1,0 +1,128 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Library } from "library.slint";
+import { Icons } from "components/icon.slint";
+import { Artwork } from "components/artwork.slint";
+import { PillButton } from "components/pill-button.slint";
+import { ListEntry } from "components/list-entry.slint";
+import { SongRow } from "components/song-row.slint";
+
+// The library: Liked Songs and the playlists on the left, the open one's songs beside
+// them, set under a poster header.
+export component LibraryPage inherits VerticalLayout {
+    // A newly opened list starts at its top.
+    property <int> open-key: Library.open-key;
+    changed open-key => { songs.content-y = 0; }
+
+    padding-top: Theme.space-6;
+    padding-left: Theme.space-7;
+    padding-right: Theme.space-7;
+    spacing: Theme.space-5;
+
+    HorizontalLayout {
+        height: Theme.pill-height;
+        spacing: Theme.space-4;
+
+        Text {
+            text: "Library";
+            vertical-alignment: center;
+            font-family: Theme.font-display;
+            font-size: Theme.text-title;
+            font-weight: Theme.weight-bold;
+            letter-spacing: Theme.tracking-display;
+            color: Theme.text;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        if Library.syncing: Text {
+            text: Library.sync-status;
+            vertical-alignment: center;
+            font-size: Theme.text-small;
+            color: Theme.text-secondary;
+        }
+
+        if !Library.syncing: PillButton {
+            icon: Icons.sync;
+            text: "Sync Now";
+            clicked => { Library.sync(); }
+        }
+    }
+
+    HorizontalLayout {
+        vertical-stretch: 1;
+        spacing: Theme.space-7;
+
+        VerticalLayout {
+            width: Theme.sidebar-width;
+
+            ListEntry {
+                title: "Liked Songs";
+                detail: Library.liked-detail;
+                glyph: Icons.heart;
+                selected: Library.open-key == 0;
+                clicked => { Library.open(0); }
+            }
+
+            ListView {
+                for playlist in Library.playlists: ListEntry {
+                    title: playlist.name;
+                    detail: playlist.detail;
+                    selected: playlist.key == Library.open-key;
+                    clicked => { Library.open(playlist.key); }
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: Theme.space-5;
+
+            HorizontalLayout {
+                spacing: Theme.space-6;
+
+                Artwork {
+                    size: Theme.art-header;
+                    large: true;
+                    glyph: Library.open-key == 0 ? Icons.heart : Icons.note;
+                }
+
+                VerticalLayout {
+                    alignment: end;
+                    spacing: Theme.space-2;
+
+                    Text {
+                        text: Library.open-title;
+                        overflow: elide;
+                        font-family: Theme.font-display;
+                        font-size: Theme.text-display;
+                        font-weight: Theme.weight-bold;
+                        letter-spacing: Theme.tracking-display;
+                        color: Theme.text;
+                    }
+
+                    Text {
+                        text: Library.open-detail;
+                        font-size: Theme.text-body;
+                        color: Theme.text-secondary;
+                    }
+                }
+            }
+
+            if Library.tracks.length == 0: Text {
+                text: Library.open-empty;
+                wrap: word-wrap;
+                font-size: Theme.text-body;
+                color: Theme.text-secondary;
+            }
+
+            songs := ListView {
+                vertical-stretch: 1;
+                for track in Library.tracks: SongRow {
+                    track: track;
+                }
+            }
+        }
+    }
+}

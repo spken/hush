@@ -5,11 +5,12 @@ mod command;
 mod error;
 mod event;
 mod id;
-mod profile;
+mod library;
+pub mod web;
 
 pub use anchor::Anchor;
 pub use command::Command;
 pub use error::Error;
 pub use event::{Degraded, Event, Track};
 pub use id::{SpotifyId, TrackId};
-pub use profile::Profile;
+pub use library::{Entity, List, PlaylistRow, TrackRow};

@@ -81,3 +81,21 @@ against a `wiremock` server: 50 concurrent identical GETs send 1 request, `Retry
 holds every lane for at least 5 s, `QUOTA_EXCEEDED` opens the breaker and fails a queued
 P3 request without sending it, a 401 sends exactly one retry with a refreshed token, and a
 cancelled queued request is never sent.
+
+## M5 — Library (Nov 8, 2026)
+
+`cargo build --release -p app`, 1280×800, Now Playing page in front. Library: 4,383 Liked
+Songs, 4 saved albums, 85 playlists (34 owned). Requests are the gateway's per-minute log;
+memory is Task Manager's private working set and working set (`Get-Process`).
+
+| Run | Web API requests | Private WS (MB) | Working set (MB) |
+| --- | --- | --- | --- |
+| first sync, empty tables (~6 min, no 429s) | 231: 88 `/me/tracks`, 1 `/me/albums`, 2 `/me/playlists`, 140 `/playlists/{id}/items` | 20.6 (at the end) | 45.9 |
+| second launch, synced minutes before | 0 | 12.8 | 35.6 |
+| launch with the sync due, library unchanged | 4: 1 `/me/tracks`, 1 `/me/albums`, 2 `/me/playlists` | 12.3 | 33.4 |
+
+An unchanged daily sync costs 1 request per list plus 1 per 50 playlists: 3 up to 50
+playlists, 4 for this account. No owned playlist was refetched (snapshots matched). Four
+owned playlists store a few tracks fewer than Spotify counts: local files and unavailable
+entries without an ID are skipped. Still to check by hand: Liked Songs scrolling at 144 fps
+and RSS with the list open and scrolled.

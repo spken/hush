@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use model::{Profile, SpotifyId};
+use model::{SpotifyId, web::Profile};
 use tokio_util::sync::CancellationToken;
 
 use crate::{ApiGateway, Error, Lane};

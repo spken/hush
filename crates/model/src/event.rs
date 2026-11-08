@@ -1,4 +1,4 @@
-use crate::TrackId;
+use crate::{List, TrackId};
 
 /// A track as the now-playing view shows it.
 #[derive(Debug)]
@@ -33,4 +33,11 @@ pub enum Event {
     Volume(u16),
     /// A service fell back to a degraded mode.
     Degraded(Degraded),
+    /// Library sync is running: `done` of `total` entries of the list being read, both 0
+    /// while unknown.
+    Syncing { done: u32, total: u32 },
+    /// Library sync ended.
+    Synced,
+    /// A library list changed in the database.
+    ListChanged(List),
 }

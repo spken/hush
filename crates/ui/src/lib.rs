@@ -1,4 +1,7 @@
-//! Slint user interface: theme tokens, components, pages and the main window.
+//! Slint user interface: theme tokens, components, pages and the main window, and the
+//! list model every list view uses.
+
+mod key_list;
 
 #[allow(
     missing_debug_implementations,
@@ -14,3 +17,4 @@ mod generated {
 }
 
 pub use generated::*;
+pub use key_list::KeyListModel;

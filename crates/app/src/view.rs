@@ -1,6 +1,8 @@
 //! The bridge between the Controller and the window: view-model updates in one direction,
 //! UI callbacks in the other.
 
+mod library;
+
 use std::{fmt, time::Instant};
 
 use model::{Anchor, Command, Track};
@@ -124,10 +126,10 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
         ));
     });
 
-    window.global::<Format>().on_clock(|position_ms| {
-        let seconds = position_ms.max(0) / 1000;
-        format!("{}:{:02}", seconds / 60, seconds % 60).into()
-    });
+    window
+        .global::<Format>()
+        .on_clock(|position_ms| clock(position_ms.max(0).unsigned_abs()).into());
+    library::bind(window, controller);
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {
@@ -165,7 +167,13 @@ fn sample(window: &MainWindow, web_api: Option<&Metrics>) {
     debug.set_this_minute(ModelRc::new(VecModel::from(this_minute)));
 }
 
-/// A count or milliseconds as a Slint `int`, saturating at `i32::MAX`.
+/// A position or length in milliseconds as "m:ss".
+fn clock(ms: u32) -> String {
+    let seconds = ms / 1000;
+    format!("{}:{:02}", seconds / 60, seconds % 60)
+}
+
+/// A count, key or milliseconds as a Slint `int`, saturating at `i32::MAX`.
 fn int(value: u32) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
 }

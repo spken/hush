@@ -1,0 +1,34 @@
+// Library state the Controller pushes to the UI, and the commands the UI sends back.
+
+// A track in a list, as its row shows it.
+export struct TrackRow {
+    title: string,
+    artists: string,
+    album: string,
+    duration: string,
+}
+
+// A playlist in the library list.
+export struct PlaylistRow {
+    key: int,
+    name: string,
+    detail: string,
+}
+
+export global Library {
+    in property <[PlaylistRow]> playlists;
+    in property <string> liked-detail;
+    // The playlist whose tracks are open, or 0 for Liked Songs.
+    in property <int> open-key;
+    in property <string> open-title;
+    in property <string> open-detail;
+    // What to say while the open list has no tracks.
+    in property <string> open-empty;
+    in property <[TrackRow]> tracks;
+    in property <bool> syncing;
+    in property <string> sync-status;
+
+    // Opens the playlist with this key, or Liked Songs for 0.
+    callback open(int);
+    callback sync();
+}

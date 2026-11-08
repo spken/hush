@@ -1,13 +1,17 @@
+import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Player, Format, Debug, Connection, EndpointRequests } from "player.slint";
-import { Rail } from "rail.slint";
+import { Library, TrackRow, PlaylistRow } from "library.slint";
+import { Rail, Page } from "rail.slint";
 import { Controls } from "controls.slint";
 import { NowPlayingPage } from "now-playing-page.slint";
+import { LibraryPage } from "library-page.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 
-export { Player, Format, Debug, Connection, EndpointRequests }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, PlaylistRow }
 
 export component MainWindow inherits Window {
+    property <Page> page;
     property <bool> immersive;
     property <bool> debug-open;
 
@@ -24,6 +28,9 @@ export component MainWindow inherits Window {
     full-screen: root.immersive;
     forward-focus: keys;
 
+    // The scroll bars of the standard list view follow the dark canvas.
+    init => { Palette.color-scheme = ColorScheme.dark; }
+
     Timer {
         interval: Theme.progress-tick;
         running: Player.playing && !root.minimized;
@@ -39,6 +46,10 @@ export component MainWindow inherits Window {
                 }
                 return accept;
             }
+            if (event.modifiers.control && (event.text == "r" || event.text == "R")) {
+                Library.sync();
+                return accept;
+            }
             if (event.text == Key.Escape && root.immersive) {
                 root.immersive = false;
                 return accept;
@@ -51,13 +62,19 @@ export component MainWindow inherits Window {
         }
 
         HorizontalLayout {
-            if !root.immersive: Rail {}
+            if !root.immersive: Rail {
+                page <=> root.page;
+            }
 
             VerticalLayout {
-                NowPlayingPage {
+                if root.page == Page.now-playing: NowPlayingPage {
                     vertical-stretch: 1;
                     full-screen: root.immersive;
                     toggle-full-screen => { root.immersive = !root.immersive; }
+                }
+
+                if root.page == Page.library: LibraryPage {
+                    vertical-stretch: 1;
                 }
 
                 if Player.has-track: Controls {}

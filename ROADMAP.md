@@ -26,6 +26,7 @@ duplication; none changes the product.
 | 8 | Crates created up front | A crate is created in the milestone that first needs it | No empty crates, no speculative code. |
 | 9 | `kit::ByteLru` and the `sync_cursor`/`settings` tables arrive in M4 | Each arrives with its first user: `ByteLru` in M7, `sync_cursor` in M5, `settings` in M8 (each table in its own numbered migration) | No unused code or schema. |
 | 10 | `wiremock` tests for the gateway | `webapi/examples/m4.rs` runs the exit criteria against a `wiremock` server | AGENTS.md: no tests; exit criteria are checked by running examples. |
+| 11 | M5 creates the `artist` table and the FTS5 index | `artist` arrives with artist pages in M6, the FTS5 index (rebuilt from the entity tables) with local search in M7 | No unused schema; M5 has no reader for either. Track and album rows keep artist names as display text. |
 
 ---
 
