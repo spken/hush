@@ -42,6 +42,8 @@ pub enum Command {
     SearchMore(Entity),
     /// Use these playback settings from now on and keep them.
     SetPlayback(Playback),
+    /// Keep this Client ID for the Web API, or forget it when empty.
+    SetClientId(Box<str>),
     /// Play the songs the search found, from the one with this key.
     PlayFound(u32),
     /// The window gained the keyboard focus.

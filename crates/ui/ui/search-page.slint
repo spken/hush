@@ -6,9 +6,9 @@ import { SearchView, ResultKind } from "search.slint";
 import { Icons } from "components/icon.slint";
 import { EmptyState } from "components/empty-state.slint";
 import { Grid } from "components/grid.slint";
-import { SearchField } from "components/search-field.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { SongRow } from "components/song-row.slint";
+import { TextField } from "components/text-field.slint";
 import { Tile } from "components/tile.slint";
 
 // Search: a field under the page title, then songs in columns and artists, albums and
@@ -37,8 +37,9 @@ export component SearchPage inherits VerticalLayout {
         alignment: start;
         spacing: Theme.space-5;
 
-        field := SearchField {
+        field := TextField {
             width: Theme.field-width;
+            icon: Icons.search;
             text <=> SearchView.query;
             placeholder: "Songs, artists, albums and playlists";
             edited(text) => { SearchView.edited(text); }

@@ -24,10 +24,6 @@ fn main() -> anyhow::Result<()> {
     {
         tracing::warn!(%error, ".env not loaded");
     }
-    let client_id = env::var("HUSH_CLIENT_ID")
-        .ok()
-        .filter(|id| !id.is_empty())
-        .map(String::into_boxed_str);
     // `HUSH_CATALOG=web-api` leaves album, artist and playlist pages to the Web API.
     let spclient = env::var("HUSH_CATALOG").map_or(true, |source| source != "web-api");
     let cache_dir =
@@ -57,7 +53,6 @@ fn main() -> anyhow::Result<()> {
     send_media_controls(window.as_weak(), media_tx);
     let deps = controller::Deps {
         cache_dir,
-        client_id,
         spclient,
         http,
         store,

@@ -53,6 +53,12 @@ impl View {
         });
     }
 
+    /// Shows the saved Client ID.
+    pub(crate) fn client_id(&self, client_id: &str) {
+        let client_id = SharedString::from(client_id);
+        self.update(move |window| window.global::<SettingsView>().set_client_id(client_id));
+    }
+
     /// Offers `devices` as outputs, with `chosen` selected, or the system default for
     /// `None`.
     pub(crate) fn outputs(&self, devices: Vec<OutputDevice>, chosen: Option<Box<str>>) {
@@ -118,6 +124,11 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
             .map(|&hz| band(hz))
             .collect::<Vec<_>>(),
     )));
+
+    let client_id = controller.clone();
+    view.on_client_id_edited(move |text| {
+        client_id.send(Command::SetClientId(text.as_str().into()));
+    });
 
     let weak = window.as_weak();
     let controller = controller.clone();

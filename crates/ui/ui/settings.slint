@@ -1,6 +1,8 @@
 // Settings state the Controller pushes to the UI, and the changes the UI sends back.
 
 export global SettingsView {
+    // The Client ID of the user's Spotify app, for the Web API.
+    in-out property <string> client-id;
     // The equalizer: on or off, a preamp and one gain per band, all in dB.
     in-out property <bool> eq;
     in-out property <float> preamp;
@@ -19,6 +21,7 @@ export global SettingsView {
 
     // Something above changed through the page.
     callback changed();
+    callback client-id-edited(string);
     // A band's gain changed: its index and the gain in dB.
     callback set-gain(int, float);
     callback choose-preset(int);

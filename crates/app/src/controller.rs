@@ -50,8 +50,6 @@ const BACKDROP_PX: u32 = 384;
 pub(crate) struct Deps {
     /// Where librespot keeps its reusable credentials.
     pub(crate) cache_dir: PathBuf,
-    /// Hush's Spotify app, for the Web API; without it the Web API stays off.
-    pub(crate) client_id: Option<Box<str>>,
     /// Whether the catalog may come from spclient; off leaves it to the Web API.
     pub(crate) spclient: bool,
     pub(crate) http: reqwest::Client,
@@ -142,7 +140,6 @@ struct Controller {
 async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakSender<Command>) {
     let Deps {
         cache_dir,
-        client_id,
         spclient,
         http,
         store,
@@ -182,6 +179,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakS
         Err(error) => tracing::warn!(%error, "playback settings not read; using defaults"),
     }
     controller.view.playback(&controller.playback);
+    let client_id = controller.client_id().await;
     controller.show_library().await;
     controller.show_search();
     if let Ok(Some(controls)) = media.await {
@@ -263,7 +261,7 @@ async fn web_api(
     events: mpsc::Sender<Event>,
 ) -> Option<Library> {
     let Some(client_id) = client_id else {
-        tracing::warn!("HUSH_CLIENT_ID is not set; the Web API is off");
+        tracing::warn!("no Client ID is set in Settings; the Web API is off");
         return None;
     };
     let tokens = match TokenProvider::new(client_id, http.clone()).await {
@@ -304,6 +302,17 @@ async fn web_api(
 }
 
 impl Controller {
+    /// Shows the saved Client ID and returns it, or `None` when none is set.
+    async fn client_id(&self) -> Option<Box<str>> {
+        let client_id = self.store.client_id().await.unwrap_or_else(|error| {
+            tracing::warn!(%error, "Client ID not read; the Web API is off");
+            None
+        });
+        self.view
+            .client_id(client_id.as_deref().unwrap_or_default());
+        client_id.filter(|id| !id.is_empty())
+    }
+
     /// Takes in the Web API and the device once they have started, starts the catalog on
     /// what is available, and returns the device's events.
     async fn started(
@@ -429,6 +438,9 @@ impl Controller {
             Command::SearchMore(entity) => self.search_more(entity),
             Command::PlayFound(start) => report(self.play_found(start).await),
             Command::SetPlayback(playback) => report(self.set_playback(playback).await),
+            Command::SetClientId(client_id) => {
+                report(self.store.save_client_id(client_id.trim()).await);
+            }
             Command::LoadPictures(keys) => {
                 for key in keys {
                     self.load_picture(key);

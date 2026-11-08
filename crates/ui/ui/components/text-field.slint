@@ -2,11 +2,13 @@ import { Theme } from "../theme.slint";
 import { Icon, Icons } from "icon.slint";
 import { IconButton } from "icon-button.slint";
 
-// A capsule text field with a search glyph, a placeholder while empty and a clear button
+// A capsule text field with an optional glyph, a placeholder while empty and a clear button
 // while not. Its outline brightens while it has focus.
-export component SearchField inherits Rectangle {
+export component TextField inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder;
+    // The glyph before the text, or none when empty.
+    in property <string> icon;
     // The text changed, by typing or by clearing.
     callback edited(string);
     // Enter was pressed.
@@ -30,11 +32,11 @@ export component SearchField inherits Rectangle {
         padding-right: Theme.space-1;
         spacing: Theme.space-3;
 
-        VerticalLayout {
+        if root.icon != "": VerticalLayout {
             alignment: center;
 
             Icon {
-                commands: Icons.search;
+                commands: root.icon;
                 width: Theme.icon-md;
                 height: Theme.icon-md;
                 fill: input.has-focus ? Theme.text : Theme.text-secondary;

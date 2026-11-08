@@ -3,6 +3,7 @@ import { Theme } from "theme.slint";
 import { SettingsView } from "settings.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { SettingRow } from "components/setting-row.slint";
+import { TextField } from "components/text-field.slint";
 import { Toggle } from "components/toggle.slint";
 import { EqSlider } from "components/eq-slider.slint";
 
@@ -44,7 +45,8 @@ component Band inherits VerticalLayout {
     }
 }
 
-// Settings: how Hush plays, where it plays to, and the equalizer.
+// Settings: the Spotify app Hush signs in with, how Hush plays, where it plays to, and the
+// equalizer.
 export component SettingsPage inherits VerticalLayout {
     padding-top: Theme.space-6;
     padding-left: Theme.space-7;
@@ -72,6 +74,26 @@ export component SettingsPage inherits VerticalLayout {
             padding-right: Theme.space-4;
             padding-bottom: Theme.space-7;
             spacing: Theme.space-2;
+
+            SectionHeader {
+                title: "Spotify";
+            }
+
+            SettingRow {
+                title: "Client ID";
+                detail: "From your app at developer.spotify.com, with the redirect URI http://127.0.0.1:8898/callback. Turns on your library, search and other devices. Takes effect when Hush next starts.";
+
+                TextField {
+                    width: Theme.settings-control-width;
+                    text <=> SettingsView.client-id;
+                    placeholder: "Client ID";
+                    edited(text) => { SettingsView.client-id-edited(text); }
+                }
+            }
+
+            Rectangle {
+                height: Theme.space-5;
+            }
 
             SectionHeader {
                 title: "Playback";
