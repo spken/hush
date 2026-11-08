@@ -1,0 +1,37 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AlbumRow } from "../library.slint";
+import { Tile } from "tile.slint";
+
+// Albums as a grid of covers, as many columns as fit. Each row of covers is one list row,
+// so only the rows on screen exist and load their albums.
+export component AlbumGrid inherits ListView {
+    in property <[AlbumRow]> albums;
+    // Opens or plays the album with this key.
+    callback open(int);
+    callback play(int);
+
+    property <length> gap: Theme.space-5;
+    property <int> columns: max(1, floor((self.visible-width + self.gap) / (Theme.art-tile + self.gap)));
+    property <length> cell: (self.visible-width - (self.columns - 1) * self.gap) / self.columns;
+
+    for row in Math.ceil(root.albums.length / root.columns): HorizontalLayout {
+        alignment: start;
+        spacing: root.gap;
+        padding-bottom: Theme.space-3;
+
+        for column in root.columns: Tile {
+            property <int> index: row * root.columns + column;
+            property <AlbumRow> album: root.albums[self.index];
+
+            width: root.cell;
+            visible: self.index < root.albums.length;
+            art: self.album.art;
+            title: self.album.name;
+            detail: self.album.year == "" ? self.album.artists : self.album.artists + " · " + self.album.year;
+            playable: true;
+            clicked => { root.open(self.album.key); }
+            play => { root.play(self.album.key); }
+        }
+    }
+}

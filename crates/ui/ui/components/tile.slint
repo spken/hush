@@ -1,16 +1,19 @@
 import { Theme } from "../theme.slint";
-import { Icons } from "icon.slint";
+import { Icon, Icons } from "icon.slint";
 import { Artwork } from "artwork.slint";
 
 // An album, artist or playlist in a grid: its art with a title and a line of detail
-// beneath. The art brightens under the pointer; a round one has its caption centred.
+// beneath. The art brightens under the pointer and, when playable, a play button rises
+// into its corner; a round one has its caption centred.
 export component Tile inherits VerticalLayout {
     in property <string> title;
     in property <string> detail;
     in property <string> glyph: Icons.album;
     in property <bool> round;
     in property <string> art;
+    in property <bool> playable;
     callback clicked();
+    callback play();
 
     spacing: Theme.space-2;
     accessible-role: button;
@@ -18,6 +21,9 @@ export component Tile inherits VerticalLayout {
     accessible-action-default => { root.clicked(); }
 
     Artwork {
+        // Whether the pointer is anywhere on the art, the play button included.
+        property <bool> hovered: touch.has-hover || play-touch.has-hover;
+
         size: root.width;
         large: true;
         round: root.round;
@@ -26,13 +32,43 @@ export component Tile inherits VerticalLayout {
 
         Rectangle {
             border-radius: parent.border-radius;
-            background: touch.pressed ? Theme.pressed : touch.has-hover ? Theme.hover : transparent;
+            background: touch.pressed ? Theme.pressed : parent.hovered ? Theme.hover : transparent;
             animate background { duration: Theme.duration-fast; easing: ease-out; }
         }
 
         touch := TouchArea {
             mouse-cursor: pointer;
             clicked => { root.clicked(); }
+        }
+
+        Rectangle {
+            property <bool> shown: root.playable && parent.hovered;
+
+            x: parent.width - self.width - Theme.space-3;
+            y: parent.height - self.height - Theme.space-3 + (self.shown ? 0 : Theme.space-2);
+            width: Theme.button-lg;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: play-touch.pressed ? Theme.accent-pressed : play-touch.has-hover ? Theme.accent-hover : Theme.accent;
+            opacity: self.shown ? 1 : 0;
+            animate opacity, y { duration: Theme.duration-normal; easing: ease-out; }
+            accessible-role: button;
+            accessible-label: "Play " + root.title;
+            accessible-enabled: root.playable;
+            accessible-action-default => { root.play(); }
+
+            Icon {
+                commands: Icons.play;
+                width: Theme.icon-md;
+                height: Theme.icon-md;
+                fill: Theme.on-accent;
+            }
+
+            play-touch := TouchArea {
+                enabled: parent.shown;
+                mouse-cursor: pointer;
+                clicked => { root.play(); }
+            }
         }
     }
 

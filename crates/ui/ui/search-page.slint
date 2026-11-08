@@ -1,7 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Library } from "library.slint";
-import { Nav, Page } from "catalog.slint";
+import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
 import { Icons } from "components/icon.slint";
 import { EmptyState } from "components/empty-state.slint";
@@ -125,7 +125,9 @@ export component SearchPage inherits VerticalLayout {
                         detail: "Artist";
                         glyph: Icons.artist;
                         round: true;
+                        playable: true;
                         clicked => { Nav.open-artist(artist.key); }
+                        play => { ArtistView.play(artist.key, 0, false); }
                     }
                 }
             }
@@ -149,7 +151,9 @@ export component SearchPage inherits VerticalLayout {
                         art: album.art;
                         title: album.name;
                         detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
+                        playable: true;
                         clicked => { Nav.open-album(album.key); }
+                        play => { AlbumView.play(album.key, 0, false); }
                     }
                 }
             }
@@ -174,6 +178,8 @@ export component SearchPage inherits VerticalLayout {
                         title: playlist.name;
                         detail: playlist.detail;
                         glyph: Icons.note;
+                        playable: true;
+                        play => { Library.play(playlist.key, 0, false); }
                         clicked => {
                             Library.open(playlist.key);
                             Nav.go(Page.library);

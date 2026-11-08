@@ -1,6 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { Nav, ArtistView } from "catalog.slint";
+import { Nav, AlbumView, ArtistView } from "catalog.slint";
 import { Icons } from "components/icon.slint";
 import { IconButton } from "components/icon-button.slint";
 import { PosterHeader } from "components/poster-header.slint";
@@ -85,7 +85,9 @@ export component ArtistPage inherits VerticalLayout {
                     art: album.art;
                     title: album.name;
                     detail: album.year == "" ? album.kind : album.year + " · " + album.kind;
+                    playable: true;
                     clicked => { Nav.open-album(album.key); }
+                    play => { AlbumView.play(album.key, 0, false); }
                 }
             }
         }

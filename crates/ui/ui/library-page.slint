@@ -5,6 +5,8 @@ import { Nav } from "catalog.slint";
 import { Icons } from "components/icon.slint";
 import { PillButton } from "components/pill-button.slint";
 import { ListEntry } from "components/list-entry.slint";
+import { AlbumGrid } from "components/album-grid.slint";
+import { AlbumView } from "catalog.slint";
 import { PosterHeader } from "components/poster-header.slint";
 import { SongRow } from "components/song-row.slint";
 
@@ -101,15 +103,11 @@ export component LibraryPage inherits VerticalLayout {
                 color: Theme.text-secondary;
             }
 
-            if Library.open-key == -1: ListView {
+            if Library.open-key == -1: AlbumGrid {
                 vertical-stretch: 1;
-                for album in Library.albums: ListEntry {
-                    title: album.name;
-                    detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
-                    glyph: Icons.album;
-                    art: album.art;
-                    clicked => { Nav.open-album(album.key); }
-                }
+                albums: Library.albums;
+                open(key) => { Nav.open-album(key); }
+                play(key) => { AlbumView.play(key, 0, false); }
             }
 
             if Library.open-key != -1: ListView {
