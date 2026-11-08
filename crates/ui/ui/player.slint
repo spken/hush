@@ -59,7 +59,17 @@ export struct EndpointRequests {
     requests: int,
 }
 
+// Something that happened to playback, and the local time it happened.
+export struct Note {
+    at: string,
+    what: string,
+}
+
 export global Debug {
+    // The device that plays: "Hush", another device's name, or "None".
+    in property <string> playing-on: "–";
+    // The latest playback notes, newest first.
+    in property <[Note]> playback-notes;
     in property <string> private-bytes;
     in property <string> working-set;
     in property <int> web-api-requests;

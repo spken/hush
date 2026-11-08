@@ -2,7 +2,7 @@
 //! the Web API only when worth it, transport controls sent there, and moving playback
 //! between devices.
 
-use std::time::Duration;
+use std::{mem, time::Duration};
 
 use model::{Event, SpotifyId, Track, TrackId, web};
 use tokio::time::Instant;
@@ -34,6 +34,9 @@ pub(super) struct Remote {
     polling: bool,
     /// Reads left that retry soon when they find nothing.
     settling: u8,
+    /// Whether playback moves back to Hush once the reads find no other device playing:
+    /// Hush was playing when it lost its session or stopped being the active device.
+    pub(super) resume: bool,
 }
 
 impl Remote {
@@ -44,6 +47,7 @@ impl Remote {
             poll_at: None,
             polling: false,
             settling: 0,
+            resume: false,
         }
     }
 }
@@ -55,9 +59,9 @@ impl Controller {
     }
 
     /// Reads the active device after `delay`, unless Hush is the active device, the window
-    /// is minimized, or a sooner read is due.
+    /// is minimized with nothing waiting to resume, or a sooner read is due.
     pub(super) fn poll_in(&mut self, delay: Duration) {
-        if self.active || !self.remote.visible || self.library.is_none() {
+        if self.active || !(self.remote.visible || self.remote.resume) || self.library.is_none() {
             return;
         }
         let at = Instant::now() + delay;
@@ -69,6 +73,14 @@ impl Controller {
     pub(super) fn settle(&mut self) {
         self.remote.settling = SETTLE_READS;
         self.poll_in(AFTER_COMMAND);
+    }
+
+    /// Hush stopped being the active device. Unless Hush moved playback away itself, which
+    /// left reads settling, what played here resumes if no other device takes it.
+    pub(super) fn deactivated(&mut self) {
+        self.note("Hush stopped being the active device");
+        self.remote.resume = self.anchor.is_playing() && self.remote.settling == 0;
+        self.settle();
     }
 
     /// Reads what plays on the active device; the answer comes back as `Event::Polled`.
@@ -91,27 +103,47 @@ impl Controller {
         });
     }
 
-    /// Shows what the active device plays, and plans the next read.
+    /// Shows what the active device plays, and plans the next read. Playback waiting to
+    /// resume moves back to Hush once the reads after it stopped find no other device.
     pub(super) fn polled(&mut self, player: Option<web::Player>) {
         self.remote.polling = false;
         if self.active {
             return;
         }
         let device = player.as_ref().and_then(|player| player.device.as_ref());
-        let own = self.device.as_ref().map(playback::Device::id);
-        let device = device.filter(|device| device.id.as_deref() != own);
+        let own: Option<Box<str>> = self.device.as_ref().map(|device| device.id().into());
+        let device = device.filter(|device| device.id.as_deref() != own.as_deref());
         self.remote.device = device.and_then(|device| device.name.clone());
         self.view.remote(self.remote.device.clone());
+        let moved = self.remote.device.is_some() && mem::take(&mut self.remote.resume);
+        match &self.remote.device {
+            Some(name) if moved => {
+                let note = format!("Playback moved to {name}");
+                self.note(&note);
+            }
+            _ => self.show_diagnostics(),
+        }
         let track = (player.as_ref())
             .filter(|_| self.remote.device.is_some())
             .and_then(|player| track(player.item.as_ref()?));
         let Some((player, track)) = player.zip(track) else {
-            self.view.track(None);
             if self.remote.settling > 0 {
                 self.remote.settling -= 1;
                 self.poll_in(AFTER_COMMAND);
             } else {
+                if mem::take(&mut self.remote.resume) {
+                    self.note("No other device playing; resuming on Hush");
+                    if let Some(own) = own {
+                        self.move_playback(own, true);
+                    }
+                }
                 self.poll_in(HEARTBEAT);
+            }
+            // The track stays on screen while it may still resume here.
+            if moved {
+                self.show_stopped();
+            } else if !self.remote.resume {
+                self.view.track(None);
             }
             return;
         };
@@ -173,16 +205,20 @@ impl Controller {
             self.playback(playback::Device::activate);
             return;
         }
+        self.move_playback(id.into(), self.anchor.is_playing());
+        self.settle();
+    }
+
+    /// Moves playback to the device with ID `id` through the Web API, playing there when
+    /// `play` is set.
+    fn move_playback(&self, id: Box<str>, play: bool) {
         let Some(library) = &self.library else { return };
         let gateway = library.gateway.clone();
-        let id: Box<str> = id.into();
-        let play = self.anchor.is_playing();
         tokio::spawn(async move {
             if let Err(error) = gateway.transfer(&id, play, CancellationToken::new()).await {
                 tracing::warn!(%error, "playback not moved");
             }
         });
-        self.settle();
     }
 }
 

@@ -28,8 +28,13 @@ async fn main() -> anyhow::Result<()> {
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
 
-    let (device, mut events) =
-        Device::start(cache_dir, auth::session_token(&http), &Playback::default()).await?;
+    let (device, mut events) = Device::start(
+        cache_dir,
+        auth::session_token(&http),
+        &Playback::default(),
+        None,
+    )
+    .await?;
     tracing::info!("\"Hush\" is in the Spotify Connect device list");
 
     let mut anchor = Anchor::new(Instant::now());

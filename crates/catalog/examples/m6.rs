@@ -42,8 +42,13 @@ async fn main() -> anyhow::Result<()> {
     let tokens = Arc::new(TokenProvider::new(&client_id, http.clone()).await?);
     let cache_dir =
         PathBuf::from(env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?).join("Hush");
-    let (device, mut events) =
-        Device::start(cache_dir, auth::session_token(&http), &Playback::default()).await?;
+    let (device, mut events) = Device::start(
+        cache_dir,
+        auth::session_token(&http),
+        &Playback::default(),
+        None,
+    )
+    .await?;
 
     let store = scratch("hush-m6-spclient.db")?;
     let gateway = spawn_gateway(&http, &tokens, &store);

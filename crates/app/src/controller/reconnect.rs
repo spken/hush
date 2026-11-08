@@ -34,11 +34,15 @@ impl Controller {
     }
 
     /// The device lost its session: playback stops here, and pages come from the database
-    /// and the Web API until it reconnects.
+    /// and the Web API until it reconnects. What played here resumes once it is back.
     pub(super) fn disconnected(&mut self) {
         tracing::warn!("the Spotify Connect device lost its session; reconnecting");
-        self.device = None;
+        self.remote.resume |= self.active && self.anchor.is_playing();
+        if let Some(device) = self.device.take() {
+            self.device_id = Some(device.id().into());
+        }
         self.active = false;
+        self.note("Session lost; reconnecting");
         self.view.connecting();
         self.start_catalog();
         self.degrade(Degraded::Disconnected, true);
@@ -46,16 +50,17 @@ impl Controller {
         self.reconnecting = Some(self.reconnect());
     }
 
-    /// Starts the device again after a delay that grows with each attempt, with the
-    /// credentials librespot stored; it never opens the browser.
+    /// Starts the device again, under the ID it had, after a delay that grows with each
+    /// attempt, with the credentials librespot stored; it never opens the browser.
     pub(super) fn reconnect(&self) -> JoinHandle<Result<(Device, Events), playback::Error>> {
         let cache_dir = self.cache_dir.clone();
         let playback = self.playback.clone();
+        let id = self.device_id.clone();
         let delay = kit::backoff(self.attempts);
         tokio::spawn(async move {
             time::sleep(delay).await;
             let login = async { Err::<String, _>(io::Error::other("no stored credentials")) };
-            Device::start(cache_dir, login, &playback).await
+            Device::start(cache_dir, login, &playback, id.as_deref()).await
         })
     }
 
@@ -75,6 +80,7 @@ impl Controller {
                 if let Ok(Err(error)) = failed {
                     let attempts = self.attempts;
                     tracing::warn!(%error, attempts, "Spotify Connect device not reconnected");
+                    self.note(&format!("Reconnect failed: {error}"));
                 }
                 self.attempts += 1;
                 self.reconnecting = Some(self.reconnect());
@@ -86,12 +92,16 @@ impl Controller {
     /// The device is back: it takes over playback commands and the catalog's spclient side.
     async fn reconnected(&mut self, device: Device) {
         tracing::info!("the Spotify Connect device reconnected");
+        self.note("Reconnected");
         device.apply(&self.playback);
         self.device = Some(device);
         self.view.connected();
         self.start_catalog();
         self.degrade(Degraded::Disconnected, false);
         self.show_route().await;
+        if self.remote.resume {
+            self.settle();
+        }
     }
 
     /// Notes that `reason` started, or with `false` ended, and shows what still runs

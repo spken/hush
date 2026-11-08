@@ -1,6 +1,7 @@
 //! The Controller: the single owner of app state. It turns UI commands into device,
 //! library and catalog calls, and playback and service events into view updates.
 
+mod diagnostics;
 mod library;
 mod media;
 mod pages;
@@ -35,6 +36,7 @@ use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Control, Lane};
 
 use self::{
+    diagnostics::Diagnostics,
     library::report,
     media::Overlay,
     remote::{Remote, volume_to_percent},
@@ -139,6 +141,9 @@ struct Controller {
     reconnecting: Option<JoinHandle<Result<(Device, Events), playback::Error>>>,
     /// Reconnects tried since the device last ran.
     attempts: u32,
+    /// The ID the device had before it lost its session, which it keeps when it is back.
+    device_id: Option<Box<str>>,
+    diagnostics: Diagnostics,
     http: reqwest::Client,
     /// Whether Hush starts again once it stops, to run an installed update.
     restart: bool,
@@ -183,6 +188,8 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         spclient,
         reconnecting: None,
         attempts: 0,
+        device_id: None,
+        diagnostics: Diagnostics::default(),
         http: http.clone(),
         restart: false,
     };
@@ -202,7 +209,7 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
     let playback = controller.playback.clone();
     let start = async {
         let library = web_api(client_id.as_deref(), http.clone(), store, events).await;
-        let device = Device::start(cache_dir, auth::session_token(&http), &playback).await;
+        let device = Device::start(cache_dir, auth::session_token(&http), &playback, None).await;
         (library, device)
     };
     tokio::pin!(start);
@@ -238,15 +245,7 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
             _ = sync_check.tick() => controller.sync(false),
         }
     }
-    if let Some(syncing) = controller.syncing {
-        syncing.cancel();
-    }
-    if let Some(device) = controller.device
-        && let Err(error) = device.shutdown().await
-    {
-        tracing::warn!(%error, "the Spotify Connect device did not shut down cleanly");
-    }
-    controller.restart
+    controller.stop().await
 }
 
 /// The outcome of the reconnect running, if one is.
@@ -315,6 +314,20 @@ async fn web_api(
 }
 
 impl Controller {
+    /// Cancels the library sync and shuts the device down; returns whether Hush should
+    /// start again.
+    async fn stop(self) -> bool {
+        if let Some(syncing) = self.syncing {
+            syncing.cancel();
+        }
+        if let Some(device) = self.device
+            && let Err(error) = device.shutdown().await
+        {
+            tracing::warn!(%error, "the Spotify Connect device did not shut down cleanly");
+        }
+        self.restart
+    }
+
     /// Shows the saved Client ID and returns it, or `None` when none is set.
     async fn client_id(&self) -> Option<Box<str>> {
         let client_id = self.store.client_id().await.unwrap_or_else(|error| {
@@ -362,6 +375,7 @@ impl Controller {
         report(self.show_open().await);
         self.fetch_open();
         self.show_route().await;
+        self.show_diagnostics();
         // Another device may be playing already.
         self.poll_in(Duration::ZERO);
         events
@@ -427,7 +441,7 @@ impl Controller {
                 self.remote.visible = visible;
                 if visible {
                     self.poll_in(Duration::ZERO);
-                } else {
+                } else if !self.remote.resume {
                     self.remote.poll_at = None;
                 }
             }
@@ -506,24 +520,25 @@ impl Controller {
                 self.view.track(Some(track));
             }
             Event::Stopped => {
-                self.show_backdrop(&Art::default());
-                if let Some(overlay) = &mut self.overlay {
-                    overlay.track(None);
+                self.note("Player stopped");
+                // The track stays on screen while it may still resume here.
+                if !self.remote.resume {
+                    self.show_stopped();
                 }
-                self.view.track(None);
                 self.view.progress(self.anchor);
-                self.show_recent();
             }
             Event::Volume(volume) => self.view.volume(volume),
             Event::Shuffle(shuffle) => self.view.shuffle(shuffle),
             Event::Active(active) => {
                 self.active = active;
                 if active {
+                    self.note("Hush became the active device");
+                    self.remote.resume = false;
                     self.remote.device = None;
                     self.remote.poll_at = None;
                     self.view.remote(None);
                 } else {
-                    self.settle();
+                    self.deactivated();
                 }
             }
             Event::Polled(player) => self.polled(player),
@@ -564,6 +579,16 @@ impl Controller {
                 }
             }
         });
+    }
+
+    /// Shows that nothing is loaded, with the playlists played last.
+    fn show_stopped(&mut self) {
+        self.show_backdrop(&Art::default());
+        if let Some(overlay) = &mut self.overlay {
+            overlay.track(None);
+        }
+        self.view.track(None);
+        self.show_recent();
     }
 
     /// Floods the canvas with the cover `art` describes, or clears it when there is none.

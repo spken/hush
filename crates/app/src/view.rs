@@ -16,6 +16,7 @@ use slint::{
     winit_030::{EventResult, WinitWindowAccessor, winit::event::WindowEvent},
 };
 use tokio::sync::watch;
+pub(crate) use ui::Note;
 use ui::{Connection, EndpointRequests, Format, KeyListModel, MainWindow, Player};
 use webapi::Metrics;
 
@@ -128,6 +129,17 @@ impl View {
     /// Shows whether shuffle is on.
     pub(crate) fn shuffle(&self, shuffle: bool) {
         self.update(move |window| window.global::<Player>().set_shuffle(shuffle));
+    }
+
+    /// Shows the device that plays and the latest playback notes, newest first, in the
+    /// debug overlay.
+    pub(crate) fn diagnostics(&self, device: &str, notes: Vec<Note>) {
+        let device = SharedString::from(device);
+        self.update(move |window| {
+            let debug = window.global::<ui::Debug>();
+            debug.set_playing_on(device);
+            debug.set_playback_notes(ModelRc::new(VecModel::from(notes)));
+        });
     }
 
     /// Shows the Web API gateway's counts in the debug overlay from now on.

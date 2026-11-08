@@ -9,8 +9,8 @@ use slint::winit_030::{
 use souvlaki::{MediaControls, PlatformConfig};
 
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE},
-    System::Threading::CreateMutexW,
+    Foundation::{CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, SYSTEMTIME},
+    System::{SystemInformation::GetLocalTime, Threading::CreateMutexW},
     UI::WindowsAndMessaging::{FindWindowW, IsIconic, SW_RESTORE, SetForegroundWindow, ShowWindow},
 };
 
@@ -68,6 +68,14 @@ fn focus_running() {
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(iter::once(0)).collect()
+}
+
+/// The local time of day as "hh:mm:ss".
+pub(crate) fn local_time() -> String {
+    let mut time = SYSTEMTIME::default();
+    // SAFETY: `time` is a valid, writable `SYSTEMTIME` for the call to fill.
+    unsafe { GetLocalTime(&raw mut time) };
+    format!("{:02}:{:02}:{:02}", time.wHour, time.wMinute, time.wSecond)
 }
 
 /// The native window behind `window`, once the event loop has created it.

@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     fs::copy(data.join("hush.db"), &db).context("copy Hush's database; is Hush closed?")?;
     let store = Store::open(&db)?;
     let (device, _events) =
-        Device::start(data, auth::session_token(&http), &Playback::default()).await?;
+        Device::start(data, auth::session_token(&http), &Playback::default(), None).await?;
 
     let (events, mut service_events) = mpsc::channel(64);
     let gateway = ApiGateway::spawn(webapi::Deps {

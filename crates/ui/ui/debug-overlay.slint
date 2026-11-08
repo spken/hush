@@ -22,13 +22,35 @@ component Row inherits HorizontalLayout {
     }
 }
 
+component NoteRow inherits HorizontalLayout {
+    in property <string> at;
+    in property <string> what;
+
+    spacing: Theme.space-3;
+
+    Text {
+        text: root.at;
+        font-family: Theme.font-mono;
+        font-size: Theme.text-small;
+        color: Theme.text-tertiary;
+    }
+
+    Text {
+        horizontal-stretch: 1;
+        text: root.what;
+        wrap: word-wrap;
+        font-size: Theme.text-small;
+        color: Theme.text;
+    }
+}
+
 component Caption inherits Text {
     font-size: Theme.text-caption;
     font-weight: Theme.weight-semibold;
     color: Theme.text-tertiary;
 }
 
-// Live memory use and Web API request counts, toggled with Ctrl+Shift+D.
+// Live memory use, Web API request counts and playback notes, toggled with Ctrl+Shift+D.
 export component DebugOverlay inherits Rectangle {
     width: Theme.debug-width;
     height: self.preferred-height;
@@ -88,6 +110,20 @@ export component DebugOverlay inherits Rectangle {
         for endpoint in Debug.this-minute: Row {
             label: endpoint.endpoint;
             value: endpoint.requests;
+        }
+
+        Caption {
+            text: "Playback";
+        }
+
+        Row {
+            label: "Playing on";
+            value: Debug.playing-on;
+        }
+
+        for note in Debug.playback-notes: NoteRow {
+            at: note.at;
+            what: note.what;
         }
     }
 }

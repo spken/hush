@@ -1,6 +1,6 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { Player, Format, Debug, Connection, EndpointRequests } from "player.slint";
+import { Player, Format, Debug, Connection, EndpointRequests, Note } from "player.slint";
 import { Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow } from "library.slint";
 import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
@@ -21,7 +21,7 @@ import { Notice } from "components/notice.slint";
 
 export { DeviceRow } from "player.slint";
 export { Theme } from "theme.slint";
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView, UpdateState }
+export { Player, Format, Debug, Connection, EndpointRequests, Note, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art, SettingsView, UpdateState }
 
 export component MainWindow inherits Window {
     property <bool> immersive;

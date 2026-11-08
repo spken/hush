@@ -42,11 +42,14 @@ impl Device {
     /// Logs a session in and registers the device as "Hush", playing as `settings` say.
     /// The session uses the reusable credentials librespot cached in `cache_dir`, or, when
     /// there are none, the access token `login` produces; `login` is only awaited in that
-    /// case. Normalisation and gapless are fixed for the device's life.
+    /// case. Normalisation and gapless are fixed for the device's life. Given an `id`, the
+    /// device keeps it, so Spotify sees a reconnect as the same device; otherwise it gets a
+    /// new one.
     pub async fn start<E>(
         cache_dir: PathBuf,
         login: impl Future<Output = Result<String, E>>,
         settings: &Playback,
+        id: Option<&str>,
     ) -> Result<(Self, Events), Error>
     where
         E: std::error::Error + Send + Sync + 'static,
@@ -63,7 +66,11 @@ impl Device {
                 Credentials::with_access_token(login.await.map_err(|e| Error::Login(e.into()))?)
             }
         };
-        let session = Session::new(SessionConfig::default(), Some(cache));
+        let mut config = SessionConfig::default();
+        if let Some(id) = id {
+            id.clone_into(&mut config.device_id);
+        }
+        let session = Session::new(config, Some(cache));
 
         let eq = Arc::new(ArcSwap::from_pointee(equalizer(settings)));
         let output: OutputChoice = Arc::new(ArcSwap::from_pointee(settings.output.clone()));
