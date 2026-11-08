@@ -6,13 +6,14 @@ mod view;
 #[allow(unsafe_code)]
 mod windows;
 
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::PathBuf, time::Duration};
 
 use anyhow::Context;
 use slint::{
     ComponentHandle,
     winit_030::winit::{platform::windows::WindowAttributesExtWindows, window::Theme},
 };
+use tokio::sync::oneshot;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
@@ -55,6 +56,8 @@ fn main() -> anyhow::Result<()> {
         })
         .select()?;
     let window = ui::MainWindow::new()?;
+    let (media_tx, media) = oneshot::channel();
+    send_media_controls(window.as_weak(), media_tx);
     let deps = controller::Deps {
         cache_dir,
         client_id,
@@ -62,6 +65,7 @@ fn main() -> anyhow::Result<()> {
         http,
         store,
         view: view::View::new(&window),
+        media,
     };
     let (controller, task) = {
         let _runtime = runtime.enter();
@@ -76,4 +80,21 @@ fn main() -> anyhow::Result<()> {
     drop(window);
     runtime.block_on(task).context("controller task")?;
     Ok(())
+}
+
+/// Creates Hush's entry in the media overlay and sends it to the Controller, once the event
+/// loop has created the native window it needs.
+fn send_media_controls(
+    window: slint::Weak<ui::MainWindow>,
+    controls: oneshot::Sender<Option<souvlaki::MediaControls>>,
+) {
+    const POLL: Duration = Duration::from_millis(50);
+    slint::Timer::single_shot(POLL, move || {
+        let Some(app) = window.upgrade() else { return };
+        match windows::native_window(app.window()) {
+            // Fails only once the Controller stopped, and then nothing needs the overlay.
+            Some(hwnd) => drop(controls.send(windows::media_controls(hwnd))),
+            None => send_media_controls(window, controls),
+        }
+    });
 }

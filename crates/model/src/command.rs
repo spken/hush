@@ -5,6 +5,8 @@ use crate::{Entity, List, Route};
 pub enum Command {
     /// Pause when playing, resume when paused.
     PlayPause,
+    /// Resume, or with `false` pause; nothing when already so.
+    SetPlaying(bool),
     /// Skip to the next track.
     Next,
     /// Restart the track, or go to the previous one near its start.

@@ -1,6 +1,12 @@
 //! Win32 calls Slint and winit do not cover.
 
-use std::{io, iter, ptr};
+use std::{ffi::c_void, io, iter, ptr};
+
+use slint::winit_030::{
+    WinitWindowAccessor,
+    winit::raw_window_handle::{HasWindowHandle, RawWindowHandle},
+};
+use souvlaki::{MediaControls, PlatformConfig};
 
 use windows_sys::Win32::{
     Foundation::{ERROR_ALREADY_EXISTS, GetLastError},
@@ -50,4 +56,27 @@ fn focus_running() {
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(iter::once(0)).collect()
+}
+
+/// The native window behind `window`, once the event loop has created it.
+pub(crate) fn native_window(window: &slint::Window) -> Option<*mut c_void> {
+    let hwnd =
+        window.with_winit_window(|window| match window.window_handle().ok()?.as_raw() {
+            RawWindowHandle::Win32(handle) => Some(handle.hwnd.get()),
+            _ => None,
+        })??;
+    Some(ptr::with_exposed_provenance_mut(hwnd.cast_unsigned()))
+}
+
+/// Hush's entry in the Windows media overlay, tied to the native window `hwnd`; `None`,
+/// after logging why, when Windows refuses one.
+pub(crate) fn media_controls(hwnd: *mut c_void) -> Option<MediaControls> {
+    let config = PlatformConfig {
+        display_name: "Hush",
+        dbus_name: "hush",
+        hwnd: Some(hwnd),
+    };
+    MediaControls::new(config)
+        .inspect_err(|error| tracing::warn!(%error, "media overlay unavailable"))
+        .ok()
 }

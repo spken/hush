@@ -29,6 +29,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+souvlaki = { workspace = true }
 ui = { workspace = true }
 webapi = { workspace = true }
 windows-sys = { workspace = true, features = [

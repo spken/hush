@@ -2,6 +2,7 @@
 //! library and catalog calls, and playback and service events into view updates.
 
 mod library;
+mod media;
 mod pages;
 mod search;
 
@@ -19,11 +20,15 @@ use images::Images;
 use model::{Anchor, Art, Command, Event, List, Route};
 use playback::{Device, Events};
 use store::Store;
-use tokio::{sync::mpsc, task::JoinHandle, time};
+use tokio::{
+    sync::{mpsc, oneshot},
+    task::JoinHandle,
+    time,
+};
 use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
-use self::{library::report, search::Search};
+use self::{library::report, media::Overlay, search::Search};
 use crate::view::{Loading, PictureKey, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
@@ -44,6 +49,9 @@ pub(crate) struct Deps {
     pub(crate) http: reqwest::Client,
     pub(crate) store: Store,
     pub(crate) view: View,
+    /// The window's entry in the Windows media overlay, once the window exists, if it
+    /// could be created.
+    pub(crate) media: oneshot::Receiver<Option<souvlaki::MediaControls>>,
 }
 
 /// Sends commands to the Controller, which stops once every handle is dropped.
@@ -56,7 +64,8 @@ impl Handle {
     /// Starts the Controller on the current tokio runtime.
     pub(crate) fn spawn(deps: Deps) -> (Self, JoinHandle<()>) {
         let (tx, rx) = mpsc::channel(64);
-        (Self { tx }, tokio::spawn(run(deps, rx)))
+        let weak = tx.downgrade();
+        (Self { tx }, tokio::spawn(run(deps, rx, weak)))
     }
 
     /// Queues `command` without waiting, so the UI thread can call it.
@@ -104,9 +113,12 @@ struct Controller {
     pictures: CancellationToken,
     /// Cancels loading the backdrop of the track before.
     backdrop: CancellationToken,
+    overlay: Option<Overlay>,
 }
 
-async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
+/// Runs the Controller until every `Handle` is dropped; `own` lets the media overlay send
+/// commands without keeping it alive.
+async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>, own: mpsc::WeakSender<Command>) {
     let Deps {
         cache_dir,
         client_id,
@@ -114,6 +126,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         http,
         store,
         view,
+        media,
     } = deps;
     let (events, mut service_events) = mpsc::channel(64);
     let mut controller = Controller {
@@ -134,9 +147,13 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         images: Images::new(http.clone(), cache_dir.join("images")),
         pictures: CancellationToken::new(),
         backdrop: CancellationToken::new(),
+        overlay: None,
     };
     controller.show_library().await;
     controller.show_search();
+    if let Ok(Some(controls)) = media.await {
+        controller.overlay = Overlay::new(controls, own);
+    }
 
     // The two browser logins share a callback port, so they must not overlap.
     let start = async {
@@ -289,6 +306,11 @@ impl Controller {
             Command::PlayPause => {
                 self.playback(Device::play_pause);
             }
+            Command::SetPlaying(playing) => {
+                if self.anchor.is_playing() != playing {
+                    self.playback(Device::play_pause);
+                }
+            }
             Command::Next => {
                 self.playback(Device::next);
             }
@@ -348,10 +370,16 @@ impl Controller {
         match event {
             Event::TrackChanged(track) => {
                 self.show_backdrop(&track.art);
+                if let Some(overlay) = &mut self.overlay {
+                    overlay.track(Some(&track));
+                }
                 self.view.track(Some(track));
             }
             Event::Stopped => {
                 self.show_backdrop(&Art::default());
+                if let Some(overlay) = &mut self.overlay {
+                    overlay.track(None);
+                }
                 self.view.track(None);
                 self.view.progress(self.anchor);
             }
@@ -359,6 +387,9 @@ impl Controller {
             Event::Active(active) => self.active = active,
             Event::Degraded(reason) => tracing::warn!(?reason, "running degraded"),
             Event::Playing { .. } | Event::Paused { .. } | Event::Seeked { .. } => {
+                if let Some(overlay) = &mut self.overlay {
+                    overlay.progress(self.anchor, Instant::now());
+                }
                 self.view.progress(self.anchor);
             }
             Event::Syncing { done, total } => self.view.syncing(Some((done, total))),
