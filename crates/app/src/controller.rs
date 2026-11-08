@@ -423,7 +423,7 @@ impl Controller {
                 report(self.show_open().await);
                 self.fetch_open();
             }
-            Command::RowsVisible { entity, keys } => report(self.rows(entity, keys).await),
+            Command::RowsVisible { entity, keys } => self.rows(entity, keys),
             Command::SyncLibrary => self.sync(true),
             Command::Search { query, now } => self.search(&query, now).await,
             Command::SearchMore(entity) => self.search_more(entity),

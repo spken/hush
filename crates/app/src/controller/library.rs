@@ -141,16 +141,32 @@ impl Controller {
         }
     }
 
-    pub(super) async fn rows(&self, entity: Entity, keys: Vec<u32>) -> Result<(), store::Error> {
-        match entity {
-            Entity::Track => self.view.track_rows(self.store.track_rows(keys).await?),
-            Entity::Album => self.view.album_rows(self.store.album_rows(keys).await?),
-            Entity::Playlist => self
-                .view
-                .playlist_rows(self.store.playlist_rows(keys).await?),
-            Entity::Artist => self.view.artist_rows(self.store.artist_rows(keys).await?),
-        }
-        Ok(())
+    /// Loads the text of the rows with `keys` and fills it in wherever it was asked for,
+    /// on its own task so that commands behind it are not held up by the database.
+    pub(super) fn rows(&self, entity: Entity, keys: Vec<u32>) {
+        let store = self.store.clone();
+        let view = self.view.clone();
+        tokio::spawn(async move {
+            let shown = match entity {
+                Entity::Track => store
+                    .track_rows(keys)
+                    .await
+                    .map(|rows| view.track_rows(rows)),
+                Entity::Album => store
+                    .album_rows(keys)
+                    .await
+                    .map(|rows| view.album_rows(rows)),
+                Entity::Playlist => store
+                    .playlist_rows(keys)
+                    .await
+                    .map(|rows| view.playlist_rows(rows)),
+                Entity::Artist => store
+                    .artist_rows(keys)
+                    .await
+                    .map(|rows| view.artist_rows(rows)),
+            };
+            report(shown);
+        });
     }
 
     /// Whether `list` may still be on its way from the catalog.
