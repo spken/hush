@@ -1,4 +1,4 @@
-use crate::{Entity, List, Playback, Route};
+use crate::{Entity, List, PictureKey, Playback, Route};
 
 /// Something the user asked for in the UI, handled by the Controller.
 #[derive(Debug)]
@@ -52,6 +52,6 @@ pub enum Command {
     ListDevices,
     /// Move playback to the Spotify Connect device with this ID.
     Transfer(Box<str>),
-    /// The UI needs the picture at `url`, `px` pixels square with corners of `radius`.
-    LoadPicture { url: Box<str>, px: u32, radius: u32 },
+    /// The UI needs these pictures.
+    LoadPictures(Vec<PictureKey>),
 }

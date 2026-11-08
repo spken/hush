@@ -21,7 +21,7 @@ use webapi::Metrics;
 
 use crate::controller;
 
-pub(crate) use self::{art::PictureKey, library::Open};
+pub(crate) use self::library::Open;
 
 /// Whether a list whose entries are not all stored is being fetched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

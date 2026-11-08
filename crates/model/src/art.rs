@@ -3,6 +3,15 @@
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Art(Box<str>);
 
+/// One decoded picture as the UI asks for it: its URL, its size in pixels and its corner
+/// radius.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PictureKey {
+    pub url: Box<str>,
+    pub px: u32,
+    pub radius: u32,
+}
+
 /// The width assumed for a size Spotify does not give one, as for most playlist pictures.
 const UNKNOWN_WIDTH: u32 = 640;
 

@@ -1,11 +1,11 @@
 //! Pictures for the UI: decoded ones in a memory-capped cache on the UI thread, missing
 //! ones asked of the Controller.
 
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, mem, rc::Rc, time::Duration};
 
 use kit::{ByteLru, Weigh};
-use model::{Art as Sizes, Command};
-use slint::{Color, ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer};
+use model::{Art as Sizes, Command, PictureKey};
+use slint::{Color, ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer, Timer};
 use ui::{Art, MainWindow};
 
 use super::{View, int};
@@ -15,14 +15,10 @@ use crate::controller;
 const CACHE_BYTES: u64 = 16 * 1024 * 1024;
 /// A tile's picture, the most common size.
 const TYPICAL_BYTES: u64 = 320 * 320 * 4;
-
-/// A picture as the UI asks for it: its URL, its size in pixels and its corner radius.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct PictureKey {
-    pub(crate) url: Box<str>,
-    pub(crate) px: u32,
-    pub(crate) radius: u32,
-}
+/// Pictures that arrive within this long of the first are shown together. Each showing
+/// asks every artwork on screen for its picture again and redraws it, so one per arrival
+/// would redraw the page for every tile that loads.
+const ARRIVALS: Duration = Duration::from_millis(32);
 
 struct Decoded(Image);
 
@@ -37,6 +33,11 @@ struct Cache {
     decoded: ByteLru<PictureKey, Decoded>,
     /// Asked of the Controller and not arrived yet.
     pending: HashSet<PictureKey>,
+    /// Missing pictures not yet asked of the Controller; they go together once the frame
+    /// that found them is drawn.
+    wanted: Vec<PictureKey>,
+    /// Whether pictures arrived that the artwork has not been told about.
+    unshown: bool,
 }
 
 impl View {
@@ -97,6 +98,8 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
     let cache = Rc::new(RefCell::new(Cache {
         decoded: ByteLru::new(CACHE_BYTES, TYPICAL_BYTES),
         pending: HashSet::new(),
+        wanted: Vec::new(),
+        unshown: false,
     }));
     let art = window.global::<Art>();
     let lookup = Rc::clone(&cache);
@@ -118,11 +121,15 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
             return decoded.0.clone();
         }
         if cache.pending.insert(key.clone()) {
-            controller.send(Command::LoadPicture {
-                url: key.url,
-                px,
-                radius,
-            });
+            if cache.wanted.is_empty() {
+                let cache = Rc::clone(&lookup);
+                let controller = controller.clone();
+                Timer::single_shot(Duration::ZERO, move || {
+                    let wanted = mem::take(&mut cache.borrow_mut().wanted);
+                    controller.send(Command::LoadPictures(wanted));
+                });
+            }
+            cache.wanted.push(key);
         }
         Image::default()
     });
@@ -136,17 +143,23 @@ pub(super) fn bind(window: &MainWindow, controller: &controller::Handle) {
             px,
             radius,
         };
-        let mut cache = cache.borrow_mut();
-        cache.pending.remove(&key);
+        let mut shown = cache.borrow_mut();
+        shown.pending.remove(&key);
         let loaded = image.size().width > 0;
         if loaded {
-            cache.decoded.insert(key, Decoded(image));
+            shown.decoded.insert(key, Decoded(image));
         }
-        if (loaded || retry)
-            && let Some(window) = weak.upgrade()
-        {
-            let art = window.global::<Art>();
-            art.set_revision(art.get_revision().wrapping_add(1));
+        if (loaded || retry) && !shown.unshown {
+            shown.unshown = true;
+            let cache = Rc::clone(&cache);
+            let weak = weak.clone();
+            Timer::single_shot(ARRIVALS, move || {
+                cache.borrow_mut().unshown = false;
+                if let Some(window) = weak.upgrade() {
+                    let art = window.global::<Art>();
+                    art.set_revision(art.get_revision().wrapping_add(1));
+                }
+            });
         }
     });
 }

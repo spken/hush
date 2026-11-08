@@ -20,7 +20,7 @@ use std::{
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
 use images::Images;
-use model::{Anchor, Art, Command, Degraded, Event, List, Playback, Route};
+use model::{Anchor, Art, Command, Degraded, Event, List, PictureKey, Playback, Route};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{
@@ -37,7 +37,7 @@ use self::{
     remote::{Remote, volume_to_percent},
     search::Search,
 };
-use crate::view::{Loading, PictureKey, View};
+use crate::view::{Loading, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
 /// the wall clock, so a sync missed while the computer slept runs soon after it wakes.
@@ -429,8 +429,10 @@ impl Controller {
             Command::SearchMore(entity) => self.search_more(entity),
             Command::PlayFound(start) => report(self.play_found(start).await),
             Command::SetPlayback(playback) => report(self.set_playback(playback).await),
-            Command::LoadPicture { url, px, radius } => {
-                self.load_picture(PictureKey { url, px, radius });
+            Command::LoadPictures(keys) => {
+                for key in keys {
+                    self.load_picture(key);
+                }
             }
         }
     }

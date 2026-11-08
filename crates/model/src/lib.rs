@@ -12,7 +12,7 @@ mod settings;
 pub mod web;
 
 pub use anchor::Anchor;
-pub use art::Art;
+pub use art::{Art, PictureKey};
 pub use catalog::AlbumKind;
 pub use command::Command;
 pub use error::Error;
