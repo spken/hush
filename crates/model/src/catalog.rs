@@ -1,12 +1,14 @@
 //! Catalog entities as a source describes them, before the database gives them keys.
 
-use crate::SpotifyId;
+use crate::{Art, SpotifyId};
 
 /// An artist where a track or album names it.
 #[derive(Debug)]
 pub struct Credit {
     pub id: SpotifyId,
     pub name: Box<str>,
+    /// The artist's portrait; empty where only its name is given.
+    pub art: Art,
 }
 
 /// A track.
@@ -16,6 +18,8 @@ pub struct Track {
     pub name: Box<str>,
     pub artists: Vec<Credit>,
     pub duration_ms: u32,
+    /// Its album's cover.
+    pub art: Art,
 }
 
 /// What kind of release an album is.
@@ -35,6 +39,7 @@ pub struct Album {
     pub artists: Vec<Credit>,
     pub year: Option<u16>,
     pub kind: AlbumKind,
+    pub art: Art,
     pub tracks: Vec<Track>,
 }
 
@@ -42,6 +47,7 @@ pub struct Album {
 #[derive(Debug)]
 pub struct Artist {
     pub name: Box<str>,
+    pub art: Art,
     pub top_tracks: Vec<Track>,
     pub albums: Vec<Album>,
 }

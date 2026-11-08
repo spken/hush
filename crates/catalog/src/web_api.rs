@@ -1,7 +1,7 @@
 use model::{
     AlbumKind, SpotifyId,
     catalog::{Album, Artist, Credit, Track},
-    web::{self, Added, Named, Page},
+    web::{self, Added, Image, Named, Page},
 };
 use serde::de::DeserializeOwned;
 use tokio_util::sync::CancellationToken;
@@ -75,7 +75,13 @@ impl CatalogSource for WebApi {
                 );
             }
             let mut album = album(raw).ok_or(Error::Unavailable)?;
-            album.tracks = items.into_iter().filter_map(track).collect();
+            album.tracks = (items.into_iter())
+                .filter_map(track)
+                .map(|track| Track {
+                    art: album.art.clone(),
+                    ..track
+                })
+                .collect();
             Ok(album)
         })
     }
@@ -91,6 +97,7 @@ impl CatalogSource for WebApi {
                 )
                 .await?;
             Ok(Artist {
+                art: Image::art(&raw.images),
                 name: raw.name.unwrap_or_default(),
                 top_tracks: Vec::new(),
                 albums: albums.into_iter().filter_map(album).collect(),
@@ -122,12 +129,25 @@ pub(crate) fn track(raw: web::Track) -> Option<Track> {
         name: raw.name.unwrap_or_default(),
         artists: credits(raw.artists),
         duration_ms: raw.duration_ms.unwrap_or(0),
+        art: raw
+            .album
+            .map(|album| Image::art(&album.images))
+            .unwrap_or_default(),
     })
 }
 
 /// A Web API album, with the tracks it includes, as the catalog keeps it; `None` without
-/// an ID.
+/// an ID. Its tracks share its cover.
 pub(crate) fn album(raw: web::Album) -> Option<Album> {
+    let art = Image::art(&raw.images);
+    let tracks = (raw.tracks.into_iter())
+        .flat_map(|page| page.items)
+        .filter_map(track)
+        .map(|track| Track {
+            art: art.clone(),
+            ..track
+        })
+        .collect();
     Some(Album {
         id: raw.id?.parse().ok()?,
         name: raw.name.unwrap_or_default(),
@@ -138,11 +158,8 @@ pub(crate) fn album(raw: web::Album) -> Option<Album> {
             Some("compilation") => AlbumKind::Compilation,
             _ => AlbumKind::Album,
         },
-        tracks: (raw.tracks)
-            .into_iter()
-            .flat_map(|page| page.items)
-            .filter_map(track)
-            .collect(),
+        art,
+        tracks,
     })
 }
 
@@ -155,5 +172,6 @@ pub(crate) fn credit(artist: Named) -> Option<Credit> {
     Some(Credit {
         id: artist.id?.parse().ok()?,
         name: artist.name.unwrap_or_default(),
+        art: Image::art(&artist.images),
     })
 }

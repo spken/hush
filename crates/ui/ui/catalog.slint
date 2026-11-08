@@ -25,6 +25,7 @@ export global AlbumView {
     // The first artist, or 0 when unknown.
     in property <int> artist-key;
     in property <string> detail;
+    in property <string> art;
     // Why there are no tracks to show yet, or "".
     in property <string> status;
     in property <[TrackRow]> tracks;
@@ -36,6 +37,7 @@ export global AlbumView {
 export global ArtistView {
     in property <int> key;
     in property <string> name;
+    in property <string> art;
     // Why there is nothing to show yet, or "".
     in property <string> status;
     in property <[TrackRow]> top-tracks;

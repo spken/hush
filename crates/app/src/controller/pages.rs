@@ -37,6 +37,7 @@ impl Controller {
 
     /// Shows the current page and fetches what it is missing.
     pub(super) async fn show_route(&mut self) {
+        self.forget_pictures();
         self.view.route(self.route, !self.history.is_empty());
         let list = match self.route {
             Route::Album(key) => List::Album(key),
@@ -60,7 +61,7 @@ impl Controller {
                 self.view.album(album, keys, self.loading(list));
             }
             Route::Artist(key) => {
-                let Some(name) = self.store.artist_name(key).await? else {
+                let Some(artist) = self.store.artist_rows(vec![key]).await?.pop() else {
                     tracing::warn!(key, "no such artist");
                     return Ok(());
                 };
@@ -69,7 +70,7 @@ impl Controller {
                     self.store.list_keys(List::ArtistAlbums(key)).await?,
                 );
                 let loading = self.loading(List::ArtistTop(key));
-                self.view.artist(key, name, lists, loading);
+                self.view.artist(artist, lists, loading);
             }
             Route::NowPlaying | Route::Library | Route::Search => {}
         }

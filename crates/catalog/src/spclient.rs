@@ -4,11 +4,11 @@ use librespot_core::{Session, SpotifyUri, spotify_id::SpotifyId as LibrespotId};
 use librespot_protocol::{
     extended_metadata::{BatchedEntityRequest, EntityRequest, ExtensionQuery},
     extension_kind::ExtensionKind,
-    metadata::{self, album::Type},
+    metadata::{self, album::Type, image::Size},
     playlist4_external::SelectedListContent,
 };
 use model::{
-    AlbumKind, SpotifyId,
+    AlbumKind, Art, SpotifyId,
     catalog::{Album, Artist, Credit, Track},
 };
 use protobuf::{EnumOrUnknown, Message};
@@ -21,6 +21,9 @@ use crate::{
 /// Entities per `extended-metadata` request. 300 tracks answered in one request in testing;
 /// the limit is unknown.
 const BATCH: usize = 250;
+/// Where Spotify serves pictures, by file ID.
+const IMAGE_CDN: &str = "https://i.scdn.co/image/";
+const HEX: &[u8; 16] = b"0123456789abcdef";
 
 /// The catalog as librespot's session reads it from spclient, which costs no Web API
 /// requests. Lists of entities come in one batched request.
@@ -121,6 +124,7 @@ impl CatalogSource for Spclient {
                 .await?;
             Ok(Artist {
                 name: raw.name().into(),
+                art: art(&raw.portrait_group),
                 top_tracks: self.tracks(&top).await?,
                 albums: albums.iter().filter_map(album).collect(),
             })
@@ -163,6 +167,7 @@ fn track(raw: &metadata::Track) -> Option<Track> {
         name: raw.name().into(),
         artists: credits(&raw.artist),
         duration_ms: u32::try_from(raw.duration()).unwrap_or(0),
+        art: art(&raw.album.cover_group),
     })
 }
 
@@ -179,6 +184,7 @@ fn album(raw: &metadata::Album) -> Option<Album> {
             Type::COMPILATION => AlbumKind::Compilation,
             Type::ALBUM | Type::AUDIOBOOK | Type::PODCAST => AlbumKind::Album,
         },
+        art: art(&raw.cover_group),
         tracks: Vec::new(),
     })
 }
@@ -189,7 +195,37 @@ fn credits(artists: &[metadata::Artist]) -> Vec<Credit> {
             Some(Credit {
                 id: id(artist.gid())?,
                 name: artist.name().into(),
+                art: Art::default(),
             })
         })
         .collect()
+}
+
+/// The sizes of a picture as spclient lists them; a size without a width has the width
+/// Spotify serves it at.
+fn art(group: &metadata::ImageGroup) -> Art {
+    let sizes: Vec<(u32, String)> = (group.image.iter())
+        .map(|image| {
+            let width = u32::try_from(image.width())
+                .ok()
+                .filter(|&width| width > 0)
+                .unwrap_or(match image.size() {
+                    Size::SMALL => 64,
+                    Size::DEFAULT => 300,
+                    Size::LARGE => 640,
+                    Size::XLARGE => 1280,
+                });
+            let mut url = IMAGE_CDN.to_owned();
+            for byte in image.file_id() {
+                url.push(char::from(HEX[usize::from(byte >> 4)]));
+                url.push(char::from(HEX[usize::from(byte & 0xf)]));
+            }
+            (width, url)
+        })
+        .collect();
+    Art::new(
+        sizes
+            .iter()
+            .map(|(width, url)| (Some(*width), url.as_str())),
+    )
 }

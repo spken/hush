@@ -69,6 +69,7 @@ impl View {
                     let artist = ui::ArtistRow {
                         key: int(row.key),
                         name: row.name.as_ref().into(),
+                        art: row.art.as_str().into(),
                     };
                     (row.key, artist)
                 }));

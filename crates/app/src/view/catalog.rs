@@ -1,6 +1,6 @@
 //! Navigation and the album and artist pages.
 
-use model::{AlbumRow, Command, Entity, List, Route};
+use model::{AlbumRow, ArtistRow, Command, Entity, List, Route};
 use slint::{ComponentHandle, ModelRc};
 use ui::{AlbumView, ArtistView, KeyListModel, MainWindow, Nav, Page};
 
@@ -38,6 +38,7 @@ impl View {
             view.set_artists(album.artists.as_ref().into());
             view.set_artist_key(album.artist_key.map_or(0, int));
             view.set_detail(detail.join(" · ").into());
+            view.set_art(album.art.as_str().into());
             view.set_status(status(songs == 0, loading, "album").into());
             with_list(&view.get_tracks(), |list| list.set_keys(keys));
         });
@@ -47,15 +48,15 @@ impl View {
     /// may still be on their way.
     pub(crate) fn artist(
         &self,
-        key: u32,
-        name: Box<str>,
+        artist: ArtistRow,
         (top, albums): (Vec<u32>, Vec<u32>),
         loading: Loading,
     ) {
         self.update(move |window| {
             let view = window.global::<ArtistView>();
-            view.set_key(int(key));
-            view.set_name(name.as_ref().into());
+            view.set_key(int(artist.key));
+            view.set_name(artist.name.as_ref().into());
+            view.set_art(artist.art.as_str().into());
             let empty = top.is_empty() && albums.is_empty();
             view.set_status(status(empty, loading, "artist").into());
             with_list(&view.get_top_tracks(), |list| list.set_keys(top));

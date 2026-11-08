@@ -1,5 +1,6 @@
 import { Theme } from "../theme.slint";
 import { TrackRow } from "../library.slint";
+import { Artwork } from "artwork.slint";
 
 // A track in a list: art or its number, title over artists, and length. It lights up
 // under the pointer, plays on a double click, and its artists open the first artist.
@@ -39,11 +40,9 @@ export component SongRow inherits Rectangle {
         if root.number <= 0: VerticalLayout {
             alignment: center;
 
-            Rectangle {
-                width: Theme.art-row;
-                height: Theme.art-row;
-                border-radius: Theme.radius-sm;
-                background: Theme.art;
+            Artwork {
+                size: Theme.art-row;
+                art: root.track.art;
             }
         }
 

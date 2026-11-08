@@ -1,4 +1,4 @@
-use crate::{AlbumKind, SpotifyId};
+use crate::{AlbumKind, Art, SpotifyId};
 
 /// A list the database keeps in order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -71,6 +71,7 @@ pub struct TrackRow {
     /// The first artist, where the track's source named its ID.
     pub artist_key: Option<u32>,
     pub duration_ms: u32,
+    pub art: Art,
 }
 
 /// The text of an artist row.
@@ -78,6 +79,7 @@ pub struct TrackRow {
 pub struct ArtistRow {
     pub key: u32,
     pub name: Box<str>,
+    pub art: Art,
 }
 
 /// The text of an album row.
@@ -90,6 +92,7 @@ pub struct AlbumRow {
     pub artist_key: Option<u32>,
     pub year: Option<u16>,
     pub kind: AlbumKind,
+    pub art: Art,
 }
 
 /// The text of a playlist row.
@@ -102,4 +105,5 @@ pub struct PlaylistRow {
     pub tracks: u32,
     /// Whether its tracks are in the database.
     pub synced: bool,
+    pub art: Art,
 }

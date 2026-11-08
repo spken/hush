@@ -1,0 +1,15 @@
+// Pictures, which Rust loads on demand and keeps in a memory-capped cache.
+
+export global Art {
+    // Bumped whenever a picture arrives, so bindings that asked for one ask again.
+    in-out property <int> revision;
+
+    // The picture `art` describes, `px` pixels square with corners of the radius given in
+    // pixels, or an empty image while it loads. Pass `revision` so the binding asks again
+    // once the picture arrives. The software renderer does not clip to rounded corners, so
+    // the picture carries them in its alpha.
+    pure callback image(string, int, int, int) -> image;
+    // A requested picture: the URL, size and radius it was asked for, and the image, empty
+    // when loading failed. `retry` says whether asking again may succeed.
+    callback arrived(string, int, int, image, bool);
+}

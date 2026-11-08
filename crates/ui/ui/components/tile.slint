@@ -9,6 +9,7 @@ export component Tile inherits VerticalLayout {
     in property <string> detail;
     in property <string> glyph: Icons.album;
     in property <bool> round;
+    in property <string> art;
     callback clicked();
 
     spacing: Theme.space-2;
@@ -21,6 +22,7 @@ export component Tile inherits VerticalLayout {
         large: true;
         round: root.round;
         glyph: root.glyph;
+        art: root.art;
 
         Rectangle {
             border-radius: parent.border-radius;

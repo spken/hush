@@ -14,6 +14,7 @@ store = { path = "crates/store" }
 auth = { path = "crates/auth" }
 webapi = { path = "crates/webapi" }
 catalog = { path = "crates/catalog" }
+images = { path = "crates/images" }
 playback = { path = "crates/playback" }
 ui = { path = "crates/ui" }
 
@@ -22,6 +23,8 @@ arc-swap = "1.9.4"
 bytes = "1.12.1"
 cpal = "0.18.2"
 dotenvy = "0.15.7"
+fast_image_resize = { version = "6.1.0", default-features = false, features = ["std"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 keyring = "4.2.0"
 librespot-connect = { version = "=0.8.0", default-features = false }
 librespot-core = "=0.8.0"

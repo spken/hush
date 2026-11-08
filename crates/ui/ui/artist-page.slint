@@ -44,6 +44,7 @@ export component ArtistPage inherits VerticalLayout {
             PosterHeader {
                 glyph: Icons.artist;
                 round: true;
+                art: ArtistView.art;
                 label: "ARTIST";
                 title: ArtistView.name;
                 playable: ArtistView.top-tracks.length > 0;
@@ -81,6 +82,7 @@ export component ArtistPage inherits VerticalLayout {
                     x: grid.cell-x(index);
                     y: grid.cell-y(index);
                     width: grid.cell;
+                    art: album.art;
                     title: album.name;
                     detail: album.year == "" ? album.kind : album.year + " · " + album.kind;
                     clicked => { Nav.open-album(album.key); }

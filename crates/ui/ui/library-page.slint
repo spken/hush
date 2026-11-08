@@ -75,6 +75,7 @@ export component LibraryPage inherits VerticalLayout {
                 for playlist in Library.playlists: ListEntry {
                     title: playlist.name;
                     detail: playlist.detail;
+                    art: playlist.art;
                     selected: playlist.key == Library.open-key;
                     clicked => { Library.open(playlist.key); }
                 }
@@ -86,6 +87,7 @@ export component LibraryPage inherits VerticalLayout {
 
             PosterHeader {
                 glyph: Library.open-key == 0 ? Icons.heart : Library.open-key == -1 ? Icons.album : Icons.note;
+                art: Library.open-art;
                 title: Library.open-title;
                 detail: Library.open-detail;
                 playable: Library.open-key != -1 && Library.tracks.length > 0;
@@ -105,6 +107,7 @@ export component LibraryPage inherits VerticalLayout {
                     title: album.name;
                     detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
                     glyph: Icons.album;
+                    art: album.art;
                     clicked => { Nav.open-album(album.key); }
                 }
             }

@@ -2,6 +2,8 @@
 
 use serde::Deserialize;
 
+use crate::Art;
+
 /// One page of a Web API list. Missing `Option` fields read as `None`.
 #[derive(Debug, Deserialize)]
 pub struct Page<T> {
@@ -29,6 +31,8 @@ pub struct Track {
     pub name: Option<Box<str>>,
     pub artists: Vec<Named>,
     pub duration_ms: Option<u32>,
+    /// Missing where the album is the one being read.
+    pub album: Option<Cover>,
 }
 
 /// An album; only `/albums/{id}` includes its first page of tracks.
@@ -42,7 +46,30 @@ pub struct Album {
     pub album_type: Option<Box<str>>,
     /// `YYYY-MM-DD`, `YYYY-MM` or `YYYY`.
     pub release_date: Option<Box<str>>,
+    pub images: Vec<Image>,
     pub tracks: Option<Page<Track>>,
+}
+
+/// The pictures of a track's album.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Cover {
+    pub images: Vec<Image>,
+}
+
+/// One size of a picture.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Image {
+    pub url: Box<str>,
+    pub width: Option<u32>,
+}
+
+impl Image {
+    /// The sizes of a picture as the catalog keeps them.
+    pub fn art(images: &[Self]) -> Art {
+        Art::new(images.iter().map(|image| (image.width, &*image.url)))
+    }
 }
 
 /// A playlist as the user's playlist list describes it.
@@ -56,6 +83,7 @@ pub struct Playlist {
     /// Changes whenever the playlist's tracks do.
     pub snapshot_id: Option<Box<str>>,
     pub items: Option<Count>,
+    pub images: Option<Vec<Image>>,
 }
 
 /// An artist: where another object mentions it, or from `/artists/{id}`.
@@ -64,6 +92,8 @@ pub struct Playlist {
 pub struct Named {
     pub id: Option<Box<str>>,
     pub name: Option<Box<str>>,
+    /// Only where an artist is the object read, not where another mentions it.
+    pub images: Vec<Image>,
 }
 
 /// How many entries a list has, where the list itself is not included.

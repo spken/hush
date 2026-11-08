@@ -8,6 +8,7 @@ import { PillButton } from "pill-button.slint";
 export component PosterHeader inherits HorizontalLayout {
     in property <string> glyph: Icons.note;
     in property <bool> round;
+    in property <string> art;
     in property <string> label;
     in property <string> title;
     in property <string> link;
@@ -24,6 +25,7 @@ export component PosterHeader inherits HorizontalLayout {
         large: true;
         round: root.round;
         glyph: root.glyph;
+        art: root.art;
     }
 
     VerticalLayout {

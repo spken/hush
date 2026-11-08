@@ -1,13 +1,19 @@
 import { Theme } from "../theme.slint";
+import { Art } from "../art.slint";
 import { Icon, Icons } from "icon.slint";
 
-// Square album art, or a round artist portrait; a neutral placeholder with a glyph until
-// art is loaded.
+// Square album art, or a round artist portrait: a neutral placeholder with a glyph that
+// the picture fades in over once it has loaded.
 export component Artwork inherits Rectangle {
     in property <length> size;
     in property <bool> large;
     in property <bool> round;
     in property <string> glyph: Icons.note;
+    // The picture's sizes, as a row carries them; "" for none.
+    in property <string> art;
+    // Pictures are decoded at one of a few sizes, so a resize does not decode them again.
+    property <length> decoded: root.size <= Theme.art-decode-sm ? Theme.art-decode-sm
+        : root.size <= Theme.art-decode-md ? Theme.art-decode-md : Theme.art-decode-lg;
 
     width: root.size;
     height: root.size;
@@ -19,5 +25,14 @@ export component Artwork inherits Rectangle {
         width: root.size * Theme.art-glyph-scale;
         height: self.width;
         fill: Theme.art-glyph;
+    }
+
+    if root.art != "": Image {
+        width: 100%;
+        height: 100%;
+        source: Art.image(root.art, root.decoded / 1px, Math.round(root.border-radius * root.decoded / root.size / 1px), Art.revision);
+        image-fit: cover;
+        opacity: self.source.width > 0 ? 1 : 0;
+        animate opacity { duration: Theme.duration-normal; easing: ease-out; }
     }
 }

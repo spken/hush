@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { Icon } from "icon.slint";
+import { Artwork } from "artwork.slint";
 
 // A list in the library: a small art block, its name and one line of detail. It is marked
 // while open.
@@ -7,6 +7,7 @@ export component ListEntry inherits Rectangle {
     in property <string> title;
     in property <string> detail;
     in property <string> glyph;
+    in property <string> art;
     in property <bool> selected;
     callback clicked();
 
@@ -27,18 +28,10 @@ export component ListEntry inherits Rectangle {
         VerticalLayout {
             alignment: center;
 
-            Rectangle {
-                width: Theme.art-row;
-                height: Theme.art-row;
-                border-radius: Theme.radius-sm;
-                background: Theme.art;
-
-                if root.glyph != "": Icon {
-                    commands: root.glyph;
-                    width: Theme.icon-sm;
-                    height: Theme.icon-sm;
-                    fill: Theme.text-secondary;
-                }
+            Artwork {
+                size: Theme.art-row;
+                glyph: root.glyph;
+                art: root.art;
             }
         }
 

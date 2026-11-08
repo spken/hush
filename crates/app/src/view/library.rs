@@ -2,7 +2,7 @@
 //! visible rows back to it.
 
 use model::{AlbumKind, AlbumRow, Command, Entity, List, PlaylistRow, TrackRow};
-use slint::{ComponentHandle, ModelRc};
+use slint::{ComponentHandle, ModelRc, SharedString};
 use ui::{KeyListModel, Library, MainWindow};
 
 use super::{Loading, View, clock, count, int, thousands, with_list};
@@ -51,6 +51,7 @@ impl View {
         self.update(move |window| {
             let library = window.global::<Library>();
             let entries = u32::try_from(keys.len()).unwrap_or(u32::MAX);
+            let mut art = SharedString::default();
             let (key, title, detail, empty) = match open {
                 Open::LikedSongs => (
                     0,
@@ -70,6 +71,7 @@ impl View {
                     } else {
                         playlist.tracks
                     };
+                    art = playlist.art.as_str().into();
                     let empty = match loading {
                         Loading::Pending => "Loading songs…",
                         Loading::Failed => "Couldn’t load this playlist. Check your connection.",
@@ -86,6 +88,7 @@ impl View {
             library.set_open_key(key);
             library.set_open_title(title.as_ref().into());
             library.set_open_detail(detail.into());
+            library.set_open_art(art);
             library.set_open_empty(empty.into());
             if key != -1 {
                 with_list(&library.get_tracks(), |list| list.set_keys(keys));
@@ -104,6 +107,7 @@ impl View {
                         artists: row.artists.as_ref().into(),
                         artist_key: row.artist_key.map_or(0, int),
                         duration: clock(row.duration_ms).into(),
+                        art: row.art.as_str().into(),
                     };
                     (row.key, track)
                 })
@@ -134,6 +138,7 @@ impl View {
                             .unwrap_or_default()
                             .into(),
                         kind: kind(row.kind).into(),
+                        art: row.art.as_str().into(),
                     };
                     (row.key, album)
                 })
@@ -158,6 +163,7 @@ impl View {
                         key: int(row.key),
                         name: row.name.as_ref().into(),
                         detail: detail.into(),
+                        art: row.art.as_str().into(),
                     };
                     (row.key, playlist)
                 })

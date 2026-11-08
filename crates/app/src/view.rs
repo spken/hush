@@ -1,6 +1,7 @@
 //! The bridge between the Controller and the window: view-model updates in one direction,
 //! UI callbacks in the other.
 
+mod art;
 mod catalog;
 mod library;
 mod search;
@@ -15,7 +16,7 @@ use webapi::Metrics;
 
 use crate::controller;
 
-pub(crate) use self::library::Open;
+pub(crate) use self::{art::PictureKey, library::Open};
 
 /// Whether a list whose entries are not all stored is being fetched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +29,7 @@ pub(crate) enum Loading {
 }
 
 /// The Controller's handle on the window; every update runs on the UI thread.
+#[derive(Clone)]
 pub(crate) struct View(slint::Weak<MainWindow>);
 
 impl View {
@@ -61,6 +63,7 @@ impl View {
                 player.set_title(track.name.as_ref().into());
                 player.set_artists(track.artists.join(", ").into());
                 player.set_duration_ms(int(track.duration_ms));
+                player.set_art(track.art.as_str().into());
             }
         });
     }
@@ -146,6 +149,7 @@ pub(crate) fn bind(window: &MainWindow, controller: &controller::Handle) {
     library::bind(window, controller);
     catalog::bind(window, controller);
     search::bind(window, controller);
+    art::bind(window, controller);
 
     let weak = window.as_weak();
     window.global::<ui::Debug>().on_sample(move || {

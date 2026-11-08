@@ -1,9 +1,9 @@
 use model::{
-    AlbumKind, AlbumRow, ArtistRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
+    AlbumKind, AlbumRow, Art, ArtistRow, Entity, List, PlaylistRow, SpotifyId, TrackRow,
     catalog::{Album, Artist, Credit, Track},
     web,
 };
-use rusqlite::{Connection, OptionalExtension, Row};
+use rusqlite::{Connection, Row};
 
 use crate::{
     Error, Store,
@@ -41,17 +41,19 @@ impl Store {
             in_transaction(conn, |conn| {
                 let mut statement = conn.prepare_cached(
                     "INSERT INTO playlist \
-                     (id, name, owner_id, owner, collaborative, tracks, snapshot) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+                     (id, name, owner_id, owner, collaborative, tracks, snapshot, art) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
                      ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
                      owner_id = excluded.owner_id, owner = excluded.owner, \
                      collaborative = excluded.collaborative, tracks = excluded.tracks, \
-                     snapshot = excluded.snapshot RETURNING key",
+                     snapshot = excluded.snapshot, \
+                     art = iif(excluded.art = '', art, excluded.art) RETURNING key",
                 )?;
                 (playlists.iter())
                     .map(|playlist| {
                         let owner = playlist.owner.as_ref();
                         let tracks = playlist.items.as_ref().and_then(|items| items.total);
+                        let art = web::Image::art(playlist.images.as_deref().unwrap_or_default());
                         let params = (
                             text(playlist.id.as_deref()),
                             text(playlist.name.as_deref()),
@@ -60,6 +62,7 @@ impl Store {
                             playlist.collaborative.unwrap_or(false),
                             tracks.unwrap_or(0),
                             text(playlist.snapshot_id.as_deref()),
+                            art.as_str(),
                         );
                         statement.query_row(params, |row| row.get(0))
                     })
@@ -82,12 +85,14 @@ impl Store {
         .await
     }
 
-    /// Stores the artist with key `key`: its name, top tracks and albums.
+    /// Stores the artist with key `key`: its name, portrait, top tracks and albums.
     pub async fn save_artist(&self, key: u32, artist: Artist) -> Result<(), Error> {
         self.call(move |conn| {
             in_transaction(conn, |conn| {
-                conn.prepare_cached("UPDATE artist SET name = ?2 WHERE key = ?1")?
-                    .execute((key, &*artist.name))?;
+                conn.prepare_cached(
+                    "UPDATE artist SET name = ?2, art = iif(?3 = '', art, ?3) WHERE key = ?1",
+                )?
+                .execute((key, &*artist.name, artist.art.as_str()))?;
                 let top = upsert_tracks(conn, &artist.top_tracks)?;
                 replace_list(conn, List::ArtistTop(key), &entries(top))?;
                 let albums = upsert_albums(conn, &artist.albums)?;
@@ -149,25 +154,17 @@ impl Store {
         self.call(move |conn| {
             rows(
                 conn,
-                "SELECT key, name FROM artist WHERE key IN (SELECT value FROM json_each(?1))",
+                "SELECT key, name, art FROM artist \
+                 WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
                     Ok(ArtistRow {
                         key: row.get(0)?,
                         name: boxed(row.get(1)?),
+                        art: Art::from_stored(row.get(2)?),
                     })
                 },
             )
-        })
-        .await
-    }
-
-    /// The name of the artist with key `key`, if the key exists.
-    pub async fn artist_name(&self, key: u32) -> Result<Option<Box<str>>, Error> {
-        self.call(move |conn| {
-            conn.prepare_cached("SELECT name FROM artist WHERE key = ?1")?
-                .query_row([key], |row| row.get::<_, String>(0).map(boxed))
-                .optional()
         })
         .await
     }
@@ -177,7 +174,7 @@ impl Store {
         self.call(move |conn| {
             rows(
                 conn,
-                "SELECT key, name, artists, artist_key, duration_ms FROM track \
+                "SELECT key, name, artists, artist_key, duration_ms, art FROM track \
                  WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
@@ -187,6 +184,7 @@ impl Store {
                         artists: boxed(row.get(2)?),
                         artist_key: row.get(3)?,
                         duration_ms: row.get(4)?,
+                        art: Art::from_stored(row.get(5)?),
                     })
                 },
             )
@@ -199,7 +197,7 @@ impl Store {
         self.call(move |conn| {
             rows(
                 conn,
-                "SELECT key, name, artists, artist_key, year, kind FROM album \
+                "SELECT key, name, artists, artist_key, year, kind, art FROM album \
                  WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
@@ -210,6 +208,7 @@ impl Store {
                         artist_key: row.get(3)?,
                         year: row.get(4)?,
                         kind: kind_from(row.get(5)?),
+                        art: Art::from_stored(row.get(6)?),
                     })
                 },
             )
@@ -223,7 +222,7 @@ impl Store {
             rows(
                 conn,
                 "SELECT key, name, owner, tracks, \
-                 EXISTS (SELECT 1 FROM sync_cursor WHERE list_id = key) FROM playlist \
+                 EXISTS (SELECT 1 FROM sync_cursor WHERE list_id = key), art FROM playlist \
                  WHERE key IN (SELECT value FROM json_each(?1))",
                 &keys,
                 |row| {
@@ -233,6 +232,7 @@ impl Store {
                         owner: boxed(row.get(2)?),
                         tracks: row.get(3)?,
                         synced: row.get(4)?,
+                        art: Art::from_stored(row.get(5)?),
                     })
                 },
             )
@@ -253,10 +253,11 @@ fn in_transaction<T>(
 
 fn upsert_tracks(conn: &Connection, tracks: &[Track]) -> rusqlite::Result<Vec<u32>> {
     let mut statement = conn.prepare_cached(
-        "INSERT INTO track (id, name, artists, artist_key, duration_ms) \
-         VALUES (?1, ?2, ?3, ?4, ?5) \
+        "INSERT INTO track (id, name, artists, artist_key, duration_ms, art) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
          ON CONFLICT (id) DO UPDATE SET name = excluded.name, artists = excluded.artists, \
-         artist_key = excluded.artist_key, duration_ms = excluded.duration_ms RETURNING key",
+         artist_key = excluded.artist_key, duration_ms = excluded.duration_ms, \
+         art = iif(excluded.art = '', art, excluded.art) RETURNING key",
     )?;
     (tracks.iter())
         .map(|track| {
@@ -267,6 +268,7 @@ fn upsert_tracks(conn: &Connection, tracks: &[Track]) -> rusqlite::Result<Vec<u3
                 names(&track.artists),
                 artist,
                 track.duration_ms,
+                track.art.as_str(),
             );
             statement.query_row(params, |row| row.get(0))
         })
@@ -275,11 +277,11 @@ fn upsert_tracks(conn: &Connection, tracks: &[Track]) -> rusqlite::Result<Vec<u3
 
 fn upsert_albums(conn: &Connection, albums: &[Album]) -> rusqlite::Result<Vec<u32>> {
     let mut statement = conn.prepare_cached(
-        "INSERT INTO album (id, name, artists, artist_key, year, kind) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+        "INSERT INTO album (id, name, artists, artist_key, year, kind, art) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
          ON CONFLICT (id) DO UPDATE SET name = excluded.name, artists = excluded.artists, \
-         artist_key = excluded.artist_key, year = excluded.year, kind = excluded.kind \
-         RETURNING key",
+         artist_key = excluded.artist_key, year = excluded.year, kind = excluded.kind, \
+         art = iif(excluded.art = '', art, excluded.art) RETURNING key",
     )?;
     (albums.iter())
         .map(|album| {
@@ -291,6 +293,7 @@ fn upsert_albums(conn: &Connection, albums: &[Album]) -> rusqlite::Result<Vec<u3
                 artist,
                 album.year,
                 kind_to(album.kind),
+                album.art.as_str(),
             );
             statement.query_row(params, |row| row.get(0))
         })
@@ -306,10 +309,14 @@ fn first_artist(conn: &Connection, artists: &[Credit]) -> rusqlite::Result<Optio
 
 fn upsert_artist(conn: &Connection, artist: &Credit) -> rusqlite::Result<u32> {
     conn.prepare_cached(
-        "INSERT INTO artist (id, name) VALUES (?1, ?2) \
-         ON CONFLICT (id) DO UPDATE SET name = excluded.name RETURNING key",
+        "INSERT INTO artist (id, name, art) VALUES (?1, ?2, ?3) \
+         ON CONFLICT (id) DO UPDATE SET name = excluded.name, \
+         art = iif(excluded.art = '', art, excluded.art) RETURNING key",
     )?
-    .query_row((artist.id.to_string(), &*artist.name), |row| row.get(0))
+    .query_row(
+        (artist.id.to_string(), &*artist.name, artist.art.as_str()),
+        |row| row.get(0),
+    )
 }
 
 /// Runs `sql`, whose `?1` is the JSON array of `keys`, and maps every row it returns.

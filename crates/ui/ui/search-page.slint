@@ -120,6 +120,7 @@ export component SearchPage inherits VerticalLayout {
                         x: artists.cell-x(index);
                         y: artists.cell-y(index);
                         width: artists.cell;
+                        art: artist.art;
                         title: artist.name;
                         detail: "Artist";
                         glyph: Icons.artist;
@@ -145,6 +146,7 @@ export component SearchPage inherits VerticalLayout {
                         x: albums.cell-x(index);
                         y: albums.cell-y(index);
                         width: albums.cell;
+                        art: album.art;
                         title: album.name;
                         detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
                         clicked => { Nav.open-album(album.key); }
@@ -168,6 +170,7 @@ export component SearchPage inherits VerticalLayout {
                         x: playlists.cell-x(index);
                         y: playlists.cell-y(index);
                         width: playlists.cell;
+                        art: playlist.art;
                         title: playlist.name;
                         detail: playlist.detail;
                         glyph: Icons.note;

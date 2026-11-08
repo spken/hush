@@ -4,6 +4,7 @@ import { Player, Format, Debug, Connection, EndpointRequests } from "player.slin
 import { Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow } from "library.slint";
 import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
+import { Art } from "art.slint";
 import { Rail } from "rail.slint";
 import { Controls } from "controls.slint";
 import { NowPlayingPage } from "now-playing-page.slint";
@@ -13,7 +14,7 @@ import { ArtistPage } from "artist-page.slint";
 import { SearchPage } from "search-page.slint";
 import { DebugOverlay } from "debug-overlay.slint";
 
-export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind }
+export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art }
 
 export component MainWindow inherits Window {
     property <bool> immersive;

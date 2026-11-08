@@ -38,4 +38,6 @@ pub enum Command {
     SearchMore(Entity),
     /// Play the songs the search found, from the one with this key.
     PlayFound(u32),
+    /// The UI needs the picture at `url`, `px` pixels square with corners of `radius`.
+    LoadPicture { url: Box<str>, px: u32, radius: u32 },
 }

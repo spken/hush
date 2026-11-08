@@ -15,6 +15,7 @@ use std::{
 
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
+use images::Images;
 use model::{Anchor, Command, Event, List, Route};
 use playback::{Device, Events};
 use store::Store;
@@ -23,7 +24,7 @@ use tokio_util::sync::CancellationToken;
 use webapi::{ApiGateway, Lane};
 
 use self::{library::report, search::Search};
-use crate::view::{Loading, View};
+use crate::view::{Loading, PictureKey, View};
 
 /// How often the Controller checks whether the daily library sync is due. The check reads
 /// the wall clock, so a sync missed while the computer slept runs soon after it wakes.
@@ -96,6 +97,9 @@ struct Controller {
     /// The pages Back returns to, oldest first.
     history: Vec<Route>,
     search: Search,
+    images: Images,
+    /// Cancels the picture loads for what the window showed before it last changed.
+    pictures: CancellationToken,
 }
 
 async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
@@ -123,6 +127,8 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         route: Route::NowPlaying,
         history: Vec::new(),
         search: Search::new(),
+        images: Images::new(http.clone(), cache_dir.join("images")),
+        pictures: CancellationToken::new(),
     };
     controller.show_library().await;
     controller.show_search();
@@ -305,6 +311,7 @@ impl Controller {
             Command::Navigate(route) => self.navigate(route).await,
             Command::Back => self.back().await,
             Command::OpenList(list) => {
+                self.forget_pictures();
                 self.open = list;
                 report(self.show_open().await);
                 self.fetch_open();
@@ -314,6 +321,9 @@ impl Controller {
             Command::Search { query, now } => self.search(&query, now).await,
             Command::SearchMore(entity) => self.search_more(entity),
             Command::PlayFound(start) => report(self.play_found(start).await),
+            Command::LoadPicture { url, px, radius } => {
+                self.load_picture(PictureKey { url, px, radius });
+            }
         }
     }
 
@@ -351,5 +361,30 @@ impl Controller {
             Event::Fetched { list, outcome } => report(self.fetched(list, outcome).await),
             Event::Searched { query, more, found } => self.searched(query, more, found),
         }
+    }
+}
+
+impl Controller {
+    /// Loads a picture for the UI, until what the window shows changes.
+    fn load_picture(&self, key: PictureKey) {
+        let images = self.images.clone();
+        let view = self.view.clone();
+        let cancel = self.pictures.clone();
+        tokio::spawn(async move {
+            match images.load(&key.url, key.px, key.radius, &cancel).await {
+                Ok(picture) => view.picture(key, Some(picture), false),
+                Err(images::Error::Cancelled) => view.picture(key, None, true),
+                Err(error) => {
+                    tracing::warn!(%error, url = &*key.url, "picture not loaded");
+                    view.picture(key, None, false);
+                }
+            }
+        });
+    }
+
+    /// Cancels the picture loads still running for what the window showed.
+    fn forget_pictures(&mut self) {
+        self.pictures.cancel();
+        self.pictures = CancellationToken::new();
     }
 }

@@ -8,12 +8,15 @@ export struct TrackRow {
     // The first artist, or 0 when unknown.
     artist-key: int,
     duration: string,
+    // Its album's cover, as `Art.image` reads it.
+    art: string,
 }
 
 // An artist in a grid.
 export struct ArtistRow {
     key: int,
     name: string,
+    art: string,
 }
 
 // An album in a list or grid.
@@ -25,6 +28,7 @@ export struct AlbumRow {
     year: string,
     // "Album", "Single" or "Compilation".
     kind: string,
+    art: string,
 }
 
 // A playlist in the library list.
@@ -32,6 +36,7 @@ export struct PlaylistRow {
     key: int,
     name: string,
     detail: string,
+    art: string,
 }
 
 export global Library {
@@ -43,6 +48,8 @@ export global Library {
     in property <int> open-key;
     in property <string> open-title;
     in property <string> open-detail;
+    // The open playlist's picture, or "".
+    in property <string> open-art;
     // What to say while the open list is empty.
     in property <string> open-empty;
     in property <[TrackRow]> tracks;

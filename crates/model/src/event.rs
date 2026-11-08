@@ -1,4 +1,4 @@
-use crate::{Entity, Hits, List, TrackId};
+use crate::{Art, Entity, Hits, List, TrackId};
 
 /// A track as the now-playing view shows it.
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub struct Track {
     pub name: Box<str>,
     pub artists: Box<[Box<str>]>,
     pub duration_ms: u32,
+    pub art: Art,
 }
 
 /// Why Hush is running with less than full service.

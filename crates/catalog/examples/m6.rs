@@ -10,10 +10,7 @@ use std::{env, fs, path::PathBuf, sync::Arc, time::Duration};
 use anyhow::{Context as _, ensure};
 use auth::TokenProvider;
 use catalog::{CatalogService, Deps};
-use model::{
-    AlbumKind, Context, Entity, Event, List, SpotifyId,
-    catalog::{Album, Credit},
-};
+use model::{Art, Context, Entity, Event, List, SpotifyId, catalog::Credit};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{sync::mpsc, time};
@@ -134,20 +131,16 @@ async fn browse(catalog: &CatalogService, store: &Store) -> anyhow::Result<usize
 
 /// Stores the artist `id` the way a track or album credit does, and returns its key.
 async fn artist_key(store: &Store, id: SpotifyId) -> anyhow::Result<u32> {
-    let credit = Album {
+    let credit = Credit {
         id,
         name: "".into(),
-        artists: vec![Credit {
-            id,
-            name: "".into(),
-        }],
-        year: None,
-        kind: AlbumKind::Album,
-        tracks: Vec::new(),
+        art: Art::default(),
     };
-    let keys = store.save_albums(vec![credit]).await?;
-    let row = store.album_rows(keys).await?.pop().context("seed album")?;
-    let key = row.artist_key.context("seed artist")?;
+    let key = store
+        .save_artists(vec![credit])
+        .await?
+        .pop()
+        .context("seed artist")?;
     ensure!(store.id(Entity::Artist, key).await? == Some(id));
     Ok(key)
 }

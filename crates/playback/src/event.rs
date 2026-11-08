@@ -1,7 +1,7 @@
 use librespot_core::SpotifyUri;
 use librespot_metadata::audio::{AudioItem, UniqueFields};
 use librespot_playback::player::PlayerEvent;
-use model::{Event, SpotifyId, Track, TrackId};
+use model::{Art, Event, SpotifyId, Track, TrackId};
 
 /// Translates a librespot player event, or returns `None` for events Hush does not use.
 pub(crate) fn map(event: PlayerEvent) -> Option<Event> {
@@ -37,5 +37,11 @@ fn track(item: AudioItem) -> Option<Track> {
             .map(|artist| artist.name.into())
             .collect(),
         duration_ms: item.duration_ms,
+        art: Art::new((item.covers.iter()).map(|cover| {
+            (
+                u32::try_from(cover.width).ok().filter(|&width| width > 0),
+                cover.url.as_str(),
+            )
+        })),
     })
 }
