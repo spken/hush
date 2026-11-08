@@ -13,6 +13,7 @@ import { AlbumPage } from "album-page.slint";
 import { ArtistPage } from "artist-page.slint";
 import { SearchPage } from "search-page.slint";
 import { DebugOverlay } from "debug-overlay.slint";
+import { Backdrop } from "components/backdrop.slint";
 
 export { Player, Format, Debug, Connection, EndpointRequests, Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow, Nav, Page, AlbumView, ArtistView, SearchView, ResultKind, Art }
 
@@ -41,6 +42,8 @@ export component MainWindow inherits Window {
         running: Player.playing && !root.minimized;
         triggered => { Player.tick(); }
     }
+
+    Backdrop {}
 
     keys := FocusScope {
         key-pressed(event) => {

@@ -6,7 +6,7 @@ mod error;
 
 use std::{path::PathBuf, sync::Arc};
 
-use fast_image_resize::{PixelType, ResizeOptions, Resizer, images::Image};
+use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer, images::Image};
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
@@ -17,6 +17,8 @@ pub use self::error::Error;
 const FETCHES: usize = 6;
 /// Pictures decoded at once.
 const DECODES: usize = 2;
+/// The size a blurred picture is shrunk to before it is enlarged again.
+const BLUR_PX: u32 = 32;
 
 /// A decoded picture: RGBA rows, four bytes a pixel and not premultiplied, with the
 /// average colour of its pixels.
@@ -66,17 +68,56 @@ impl Images {
         radius: u32,
         cancel: &CancellationToken,
     ) -> Result<Picture, Error> {
+        let bytes = self.bytes(url, cancel).await?;
+        self.decode(cancel, move || {
+            let rgb = square(&bytes, px)?.into_vec();
+            Ok(picture(&rgb, px, radius))
+        })
+        .await
+    }
+
+    /// The picture at `url` shrunk to a few pixels and smoothly enlarged to `px` by `px`
+    /// again, which reads as a heavy blur.
+    pub async fn blurred(
+        &self,
+        url: &str,
+        px: u32,
+        cancel: &CancellationToken,
+    ) -> Result<Picture, Error> {
+        let bytes = self.bytes(url, cancel).await?;
+        self.decode(cancel, move || {
+            let small = square(&bytes, BLUR_PX)?;
+            let mut large = Image::new(px, px, PixelType::U8x3);
+            Resizer::new().resize(
+                &small,
+                &mut large,
+                &ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Mitchell)),
+            )?;
+            Ok(picture(&large.into_vec(), px, 0))
+        })
+        .await
+    }
+
+    /// The encoded picture at `url`, from the disk cache or else the CDN.
+    async fn bytes(&self, url: &str, cancel: &CancellationToken) -> Result<Vec<u8>, Error> {
         let inner = &self.inner;
-        let bytes = if let Some(bytes) = inner.disk.read(url).await {
-            bytes
-        } else {
-            let _permit = cancelled(cancel, inner.fetches.acquire()).await?;
-            let bytes = cancelled(cancel, fetch(&inner.http, url)).await??;
-            inner.disk.write(url, &bytes).await;
-            bytes
-        };
-        let _permit = cancelled(cancel, inner.decodes.acquire()).await?;
-        tokio::task::spawn_blocking(move || decode(&bytes, px, radius)).await?
+        if let Some(bytes) = inner.disk.read(url).await {
+            return Ok(bytes);
+        }
+        let _permit = cancelled(cancel, inner.fetches.acquire()).await?;
+        let bytes = cancelled(cancel, fetch(&inner.http, url)).await??;
+        inner.disk.write(url, &bytes).await;
+        Ok(bytes)
+    }
+
+    /// Runs `work` on a blocking thread, at most `DECODES` at a time.
+    async fn decode(
+        &self,
+        cancel: &CancellationToken,
+        work: impl FnOnce() -> Result<Picture, Error> + Send + 'static,
+    ) -> Result<Picture, Error> {
+        let _permit = cancelled(cancel, self.inner.decodes.acquire()).await?;
+        tokio::task::spawn_blocking(work).await?
     }
 }
 
@@ -100,9 +141,8 @@ async fn fetch(http: &reqwest::Client, url: &str) -> Result<Vec<u8>, Error> {
     Ok(response.bytes().await?.into())
 }
 
-/// Decodes `bytes`, resizes them to `px` by `px`, cropping the long side, and rounds the
-/// corners to `radius`.
-fn decode(bytes: &[u8], px: u32, radius: u32) -> Result<Picture, Error> {
+/// Decodes `bytes` and resizes them to `px` by `px` RGB pixels, cropping the long side.
+fn square(bytes: &[u8], px: u32) -> Result<Image<'static>, Error> {
     let decoded = image::load_from_memory(bytes)?.into_rgb8();
     let (width, height) = decoded.dimensions();
     let source = Image::from_vec_u8(width, height, decoded.into_raw(), PixelType::U8x3)?;
@@ -112,13 +152,17 @@ fn decode(bytes: &[u8], px: u32, radius: u32) -> Result<Picture, Error> {
         &mut target,
         &ResizeOptions::new().fit_into_destination(Some((0.5, 0.5))),
     )?;
-    let rgb = target.into_vec();
-    Ok(Picture {
+    Ok(target)
+}
+
+/// Square RGB pixels as a picture with corners of `radius`.
+fn picture(rgb: &[u8], px: u32, radius: u32) -> Picture {
+    Picture {
         width: px,
         height: px,
-        average: average(&rgb),
-        rgba: rounded(&rgb, px, radius),
-    })
+        average: average(rgb),
+        rgba: rounded(rgb, px, radius),
+    }
 }
 
 /// Square RGB pixels as RGBA, transparent outside corners of `radius`, with the edge

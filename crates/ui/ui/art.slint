@@ -3,6 +3,14 @@
 export global Art {
     // Bumped whenever a picture arrives, so bindings that asked for one ask again.
     in-out property <int> revision;
+    // The canvas behind everything: two layers of the current cover, blurred, so a new
+    // cover can cross-fade over the old one, each with its average colour (fully
+    // transparent for none).
+    in property <image> backdrop-a;
+    in property <color> backdrop-a-colour: transparent;
+    in property <image> backdrop-b;
+    in property <color> backdrop-b-colour: transparent;
+    in property <bool> backdrop-b-front;
 
     // The picture `art` describes, `px` pixels square with corners of the radius given in
     // pixels, or an empty image while it loads. Pass `revision` so the binding asks again

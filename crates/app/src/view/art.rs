@@ -5,7 +5,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use kit::{ByteLru, Weigh};
 use model::{Art as Sizes, Command};
-use slint::{ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer};
+use slint::{Color, ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer};
 use ui::{Art, MainWindow};
 
 use super::{View, int};
@@ -44,13 +44,7 @@ impl View {
     /// says whether asking again may succeed.
     pub(crate) fn picture(&self, key: PictureKey, picture: Option<images::Picture>, retry: bool) {
         self.update(move |window| {
-            let image = picture.map_or_else(Image::default, |picture| {
-                Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-                    &picture.rgba,
-                    picture.width,
-                    picture.height,
-                ))
-            });
+            let image = picture.as_ref().map_or_else(Image::default, image);
             window.global::<Art>().invoke_arrived(
                 key.url.as_ref().into(),
                 int(key.px),
@@ -60,6 +54,41 @@ impl View {
             );
         });
     }
+}
+
+impl View {
+    /// Floods the canvas with a decoded cover, or clears it for `None`, cross-fading from
+    /// what it showed.
+    pub(crate) fn backdrop(&self, picture: Option<images::Picture>) {
+        self.update(move |window| {
+            let (image, colour) = picture.map_or_else(
+                || (Image::default(), Color::from_argb_u8(0, 0, 0, 0)),
+                |picture| {
+                    let [red, green, blue] = picture.average;
+                    (image(&picture), Color::from_rgb_u8(red, green, blue))
+                },
+            );
+            let art = window.global::<Art>();
+            let to_b = !art.get_backdrop_b_front();
+            if to_b {
+                art.set_backdrop_b(image);
+                art.set_backdrop_b_colour(colour);
+            } else {
+                art.set_backdrop_a(image);
+                art.set_backdrop_a_colour(colour);
+            }
+            art.set_backdrop_b_front(to_b);
+        });
+    }
+}
+
+/// A decoded picture as Slint shows it.
+fn image(picture: &images::Picture) -> Image {
+    Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+        &picture.rgba,
+        picture.width,
+        picture.height,
+    ))
 }
 
 /// Answers the UI's requests for pictures from the cache, and asks the Controller for the

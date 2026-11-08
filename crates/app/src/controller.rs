@@ -16,7 +16,7 @@ use std::{
 use auth::TokenProvider;
 use catalog::{CatalogService, Library};
 use images::Images;
-use model::{Anchor, Command, Event, List, Route};
+use model::{Anchor, Art, Command, Event, List, Route};
 use playback::{Device, Events};
 use store::Store;
 use tokio::{sync::mpsc, task::JoinHandle, time};
@@ -29,6 +29,8 @@ use crate::view::{Loading, PictureKey, View};
 /// How often the Controller checks whether the daily library sync is due. The check reads
 /// the wall clock, so a sync missed while the computer slept runs soon after it wakes.
 const SYNC_CHECK: Duration = Duration::from_mins(10);
+/// The size of the canvas's blurred copy of the cover; Slint stretches it over the window.
+const BACKDROP_PX: u32 = 384;
 
 /// What the Controller is built from.
 #[derive(Debug)]
@@ -100,6 +102,8 @@ struct Controller {
     images: Images,
     /// Cancels the picture loads for what the window showed before it last changed.
     pictures: CancellationToken,
+    /// Cancels loading the backdrop of the track before.
+    backdrop: CancellationToken,
 }
 
 async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
@@ -129,6 +133,7 @@ async fn run(deps: Deps, mut commands: mpsc::Receiver<Command>) {
         search: Search::new(),
         images: Images::new(http.clone(), cache_dir.join("images")),
         pictures: CancellationToken::new(),
+        backdrop: CancellationToken::new(),
     };
     controller.show_library().await;
     controller.show_search();
@@ -341,8 +346,12 @@ impl Controller {
     async fn event(&mut self, event: Event) {
         self.anchor.apply(&event, Instant::now());
         match event {
-            Event::TrackChanged(track) => self.view.track(Some(track)),
+            Event::TrackChanged(track) => {
+                self.show_backdrop(&track.art);
+                self.view.track(Some(track));
+            }
             Event::Stopped => {
+                self.show_backdrop(&Art::default());
                 self.view.track(None);
                 self.view.progress(self.anchor);
             }
@@ -377,6 +386,31 @@ impl Controller {
                 Err(error) => {
                     tracing::warn!(%error, url = &*key.url, "picture not loaded");
                     view.picture(key, None, false);
+                }
+            }
+        });
+    }
+
+    /// Floods the canvas with the cover `art` describes, or clears it when there is none.
+    fn show_backdrop(&mut self, art: &Art) {
+        self.backdrop.cancel();
+        self.backdrop = CancellationToken::new();
+        // The smallest size: it is blurred anyway.
+        let Some(url) = Art::url(art.as_str(), 1) else {
+            self.view.backdrop(None);
+            return;
+        };
+        let url: Box<str> = url.into();
+        let images = self.images.clone();
+        let view = self.view.clone();
+        let cancel = self.backdrop.clone();
+        tokio::spawn(async move {
+            match images.blurred(&url, BACKDROP_PX, &cancel).await {
+                Ok(picture) => view.backdrop(Some(picture)),
+                Err(images::Error::Cancelled) => {}
+                Err(error) => {
+                    tracing::warn!(%error, url = &*url, "backdrop not loaded");
+                    view.backdrop(None);
                 }
             }
         });

@@ -18,7 +18,7 @@ duplication; none changes the product.
 | --- | --- | --- | --- |
 | 1 | `catalog` depends on `playback` | `catalog` depends on `librespot-core` only; `app` passes the `Session` in | Catalog only needs the session, not the player. Keeps playback swappable. |
 | 2 | Coalescing, cancellation and request/reply live in gateway, catalog and images separately | One shared `kit` crate: `Coalescer<K, V>`, `Req<T>`, `backoff`, byte-weighted LRU wrapper | The same logic was going to be written three times. |
-| 3 | `images` depends on `model` only | `images` also depends on `store` (average colour is stored in SQLite) | The plan stores placeholder colours in SQLite. |
+| 3 | `images` depends on `model` only; average colour → `store` | `images` depends on neither: it returns pixels and the average colour, which tints the backdrop and is not stored | The colour is needed only for the current cover, which is decoded anyway; placeholders show the neutral art colour for the few milliseconds a cached picture takes. |
 | 4 | Gateway and images each fetch over HTTP | One `reqwest::Client` built in `app`, passed to both | One connection pool, one TLS config. |
 | 5 | `cargo run --bin m1` | Spikes are `examples/` in the crate they exercise (`cargo run -p playback --example m1`) | Spike code never ships in the release binary and never needs a second `[[bin]]`. |
 | 6 | M2 = Connect device **and** custom `EqSink` + mixer | Split into **M2a** (Connect) and **M2b** (audio chain) | Settle the Connect risk before writing audio DSP. |
