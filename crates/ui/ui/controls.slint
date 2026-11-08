@@ -5,8 +5,8 @@ import { Volume } from "components/volume.slint";
 import { DevicePicker } from "components/device-picker.slint";
 import { TrackSummary } from "components/track-summary.slint";
 
-// The borderless strip along the bottom of the canvas: the current track, transport,
-// timeline, volume and the device picker.
+// The borderless strip along the bottom of the canvas: the current track, timeline,
+// transport, volume and the device picker.
 export component Controls inherits HorizontalLayout {
     height: Theme.controls-height;
     padding-left: Theme.space-6;
@@ -17,13 +17,13 @@ export component Controls inherits HorizontalLayout {
         horizontal-stretch: 0;
     }
 
-    Transport {
-        horizontal-stretch: 0;
-    }
-
     Timeline {
         horizontal-stretch: 1;
         font-size: Theme.text-small;
+    }
+
+    Transport {
+        horizontal-stretch: 0;
     }
 
     Volume {
