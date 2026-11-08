@@ -6,8 +6,6 @@ export component SeekBar {
     in property <float> value;
     in property <bool> enabled: true;
     in property <length> thickness: Theme.seek-thickness;
-    // How long the fill glides to a new `value`; the progress bar matches its update tick.
-    in property <duration> glide: 0ms;
     in property <string> label;
     out property <bool> dragging: touch.pressed;
     // Set from pointer events rather than bound, so labels that show it cannot feed back
@@ -16,9 +14,7 @@ export component SeekBar {
     callback committed(float);
 
     property <bool> active: root.enabled && (touch.has-hover || touch.pressed);
-    property <float> settled: clamp(root.value, 0, 1);
-    animate settled { duration: root.glide; easing: linear; }
-    property <float> shown: touch.pressed ? root.drag-value : root.settled;
+    property <float> shown: touch.pressed ? root.drag-value : clamp(root.value, 0, 1);
 
     function follow-pointer() {
         root.drag-value = clamp(touch.mouse-x / max(1px, root.width), 0, 1);

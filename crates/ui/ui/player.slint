@@ -42,8 +42,10 @@ export global Player {
     callback list-devices();
     // Moves playback to the device with this ID.
     callback transfer(string);
-    // Fires every `Theme.progress-tick` while playing, to move `position-ms` on.
+    // Fires after `next-tick` while playing, to move `position-ms` on to the track's next
+    // whole second; `tick` sets `next-tick` again each time.
     callback tick();
+    in property <duration> next-tick: 1s;
 }
 
 export global Format {

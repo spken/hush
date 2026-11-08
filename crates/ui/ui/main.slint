@@ -47,7 +47,7 @@ export component MainWindow inherits Window {
     init => { Palette.color-scheme = ColorScheme.dark; }
 
     Timer {
-        interval: Theme.progress-tick;
+        interval: Player.next-tick;
         running: Player.playing && !root.minimized;
         triggered => { Player.tick(); }
     }

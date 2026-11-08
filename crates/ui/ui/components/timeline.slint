@@ -25,7 +25,6 @@ export component Timeline inherits HorizontalLayout {
         label: "Playback position";
         enabled: Player.has-track;
         value: Player.progress;
-        glide: Player.playing ? Theme.progress-tick : 0ms;
         committed(fraction) => { Player.seek(round(fraction * Player.duration-ms)); }
     }
 

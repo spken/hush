@@ -98,8 +98,8 @@ impl View {
         });
     }
 
-    /// Shows the play state and, on every UI progress tick, the position derived from
-    /// `anchor`.
+    /// Shows the play state and the position derived from `anchor`, moved on once a second
+    /// as the track reaches each whole second.
     pub(crate) fn progress(&self, anchor: Anchor) {
         self.update(move |window| {
             let player = window.global::<Player>();
@@ -107,8 +107,10 @@ impl View {
             let window = window.as_weak();
             let tick = move || {
                 if let Some(window) = window.upgrade() {
-                    let position_ms = anchor.position_at(Instant::now());
-                    window.global::<Player>().set_position_ms(int(position_ms));
+                    let (position_ms, next_ms) = whole_second(anchor.position_at(Instant::now()));
+                    let player = window.global::<Player>();
+                    player.set_position_ms(int(position_ms));
+                    player.set_next_tick(i64::from(next_ms));
                 }
             };
             tick();
@@ -283,6 +285,17 @@ fn thousands(number: u32) -> String {
         grouped.push(digit);
     }
     grouped
+}
+
+/// The whole second a track is at, in milliseconds, and how many milliseconds until the
+/// next one. A tick that fires a little early still shows the second it was meant for.
+fn whole_second(position_ms: u32) -> (u32, u32) {
+    const EARLY_MS: u32 = 50;
+    let second_ms = position_ms.saturating_add(EARLY_MS) / 1000 * 1000;
+    (
+        second_ms,
+        second_ms.saturating_add(1000).saturating_sub(position_ms),
+    )
 }
 
 /// A position or length in milliseconds as "m:ss".
