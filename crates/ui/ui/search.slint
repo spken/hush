@@ -8,8 +8,11 @@ export enum ResultKind { songs, artists, albums, playlists }
 export global SearchView {
     // The search text, kept while the page is closed.
     in-out property <string> query;
-    // What to say above the results, or "".
+    // What to say beside the search field, or "".
     in property <string> status;
+    // The headline and explanation shown in place of results, or "" while there are some.
+    in property <string> title;
+    in property <string> hint;
     in property <[TrackRow]> songs;
     in property <[ArtistRow]> artists;
     in property <[AlbumRow]> albums;

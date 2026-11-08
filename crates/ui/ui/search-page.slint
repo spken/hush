@@ -4,19 +4,17 @@ import { Library } from "library.slint";
 import { Nav, Page } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
 import { Icons } from "components/icon.slint";
+import { EmptyState } from "components/empty-state.slint";
+import { Grid } from "components/grid.slint";
 import { SearchField } from "components/search-field.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { SongRow } from "components/song-row.slint";
 import { Tile } from "components/tile.slint";
-import { TileGrid } from "components/tile-grid.slint";
 
-// Search: a field under the page title, then songs, artists, albums and playlists, each
-// with library matches first and Show More for the rest of Spotify's catalog.
+// Search: a field under the page title, then songs in columns and artists, albums and
+// playlists as tiles, each with library matches first and Show More for the rest of
+// Spotify's catalog.
 export component SearchPage inherits VerticalLayout {
-    // New results start at the top.
-    property <string> query: SearchView.query;
-    changed query => { scroll.content-y = 0; }
-
     padding-top: Theme.space-6;
     padding-left: Theme.space-7;
     padding-right: Theme.space-7;
@@ -37,32 +35,48 @@ export component SearchPage inherits VerticalLayout {
 
     HorizontalLayout {
         alignment: start;
+        spacing: Theme.space-5;
 
         field := SearchField {
-            horizontal-stretch: 1;
-            max-width: Theme.field-max-width;
+            width: Theme.field-width;
             text <=> SearchView.query;
             placeholder: "Songs, artists, albums and playlists";
             edited(text) => { SearchView.edited(text); }
             accepted(text) => { SearchView.accepted(text); }
         }
+
+        Text {
+            text: SearchView.status;
+            vertical-alignment: center;
+            overflow: elide;
+            font-size: Theme.text-small;
+            color: Theme.text-tertiary;
+        }
     }
 
-    if SearchView.status != "": Text {
-        text: SearchView.status;
-        wrap: word-wrap;
-        font-size: Theme.text-body;
-        color: Theme.text-secondary;
+    if SearchView.title != "": EmptyState {
+        vertical-stretch: 1;
+        padding-bottom: Theme.space-8;
+        glyph: Icons.search;
+        title: SearchView.title;
+        message: SearchView.hint;
     }
 
-    scroll := ScrollView {
+    if SearchView.title == "": scroll := ScrollView {
+        // New results start at the top.
+        property <string> query: SearchView.query;
+        changed query => { self.content-y = 0; }
+
         vertical-stretch: 1;
         content-width: self.visible-width;
 
         VerticalLayout {
             width: scroll.visible-width;
-            padding-bottom: Theme.space-6;
-            spacing: Theme.space-6;
+            padding-top: Theme.space-3;
+            // Clear of the scroll bar, which overlays the content.
+            padding-right: Theme.space-4;
+            padding-bottom: Theme.space-7;
+            spacing: Theme.space-7;
 
             if SearchView.songs.length > 0: VerticalLayout {
                 spacing: Theme.space-3;
@@ -73,8 +87,16 @@ export component SearchPage inherits VerticalLayout {
                     clicked => { SearchView.more(ResultKind.songs); }
                 }
 
-                VerticalLayout {
-                    for track in SearchView.songs: SongRow {
+                songs := Grid {
+                    count: SearchView.songs.length;
+                    min-cell: Theme.song-cell;
+                    cell-height: Theme.row-height;
+                    row-gap: 0;
+
+                    for track[index] in SearchView.songs: SongRow {
+                        x: songs.cell-x(index);
+                        y: songs.cell-y(index);
+                        width: songs.cell;
                         track: track;
                         play => { SearchView.play(track.key); }
                         open-artist(key) => { Nav.open-artist(key); }
@@ -83,7 +105,7 @@ export component SearchPage inherits VerticalLayout {
             }
 
             if SearchView.artists.length > 0: VerticalLayout {
-                spacing: Theme.space-3;
+                spacing: Theme.space-4;
 
                 SectionHeader {
                     title: "Artists";
@@ -91,12 +113,12 @@ export component SearchPage inherits VerticalLayout {
                     clicked => { SearchView.more(ResultKind.artists); }
                 }
 
-                artists := TileGrid {
+                artists := Grid {
                     count: SearchView.artists.length;
 
                     for artist[index] in SearchView.artists: Tile {
-                        x: artists.tile-x(index);
-                        y: artists.tile-y(index);
+                        x: artists.cell-x(index);
+                        y: artists.cell-y(index);
                         width: artists.cell;
                         title: artist.name;
                         detail: "Artist";
@@ -108,7 +130,7 @@ export component SearchPage inherits VerticalLayout {
             }
 
             if SearchView.albums.length > 0: VerticalLayout {
-                spacing: Theme.space-3;
+                spacing: Theme.space-4;
 
                 SectionHeader {
                     title: "Albums";
@@ -116,12 +138,12 @@ export component SearchPage inherits VerticalLayout {
                     clicked => { SearchView.more(ResultKind.albums); }
                 }
 
-                albums := TileGrid {
+                albums := Grid {
                     count: SearchView.albums.length;
 
                     for album[index] in SearchView.albums: Tile {
-                        x: albums.tile-x(index);
-                        y: albums.tile-y(index);
+                        x: albums.cell-x(index);
+                        y: albums.cell-y(index);
                         width: albums.cell;
                         title: album.name;
                         detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
@@ -131,7 +153,7 @@ export component SearchPage inherits VerticalLayout {
             }
 
             if SearchView.playlists.length > 0: VerticalLayout {
-                spacing: Theme.space-3;
+                spacing: Theme.space-4;
 
                 SectionHeader {
                     title: "Playlists";
@@ -139,12 +161,12 @@ export component SearchPage inherits VerticalLayout {
                     clicked => { SearchView.more(ResultKind.playlists); }
                 }
 
-                playlists := TileGrid {
+                playlists := Grid {
                     count: SearchView.playlists.length;
 
                     for playlist[index] in SearchView.playlists: Tile {
-                        x: playlists.tile-x(index);
-                        y: playlists.tile-y(index);
+                        x: playlists.cell-x(index);
+                        y: playlists.cell-y(index);
                         width: playlists.cell;
                         title: playlist.name;
                         detail: playlist.detail;

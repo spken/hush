@@ -16,22 +16,34 @@ impl View {
         self.update(move |window| {
             let view = window.global::<SearchView>();
             let empty = kinds.iter().all(|(keys, _)| keys.is_empty());
-            let status = match loading {
-                _ if query.is_empty() => {
-                    "Find songs, artists, albums and playlists: your library first, then all \
-                     of Spotify."
-                        .to_owned()
-                }
-                Loading::Pending if empty => "Searching…".to_owned(),
-                Loading::Pending => "Searching Spotify…".to_owned(),
-                Loading::Failed if empty => {
-                    "Couldn’t search Spotify. Check your connection.".to_owned()
-                }
-                Loading::Failed => "Couldn’t reach Spotify; showing your library.".to_owned(),
-                Loading::Done if empty => format!("Nothing found for “{query}”."),
-                Loading::Done => String::new(),
+            // The line beside the field, and the headline and hint in place of results.
+            let (status, title, hint) = match loading {
+                _ if query.is_empty() => (
+                    "",
+                    "Find something to play",
+                    "Your library first, then all of Spotify.".to_owned(),
+                ),
+                Loading::Pending => ("Searching Spotify…", "", String::new()),
+                Loading::Failed if empty => (
+                    "",
+                    "Couldn’t search Spotify",
+                    "Check your connection and try again.".to_owned(),
+                ),
+                Loading::Failed => (
+                    "Couldn’t reach Spotify; showing your library.",
+                    "",
+                    String::new(),
+                ),
+                Loading::Done if empty => (
+                    "",
+                    "No results",
+                    format!("Nothing found for “{query}”. Try other words or check the spelling."),
+                ),
+                Loading::Done => ("", "", String::new()),
             };
             view.set_status(status.into());
+            view.set_title(title.into());
+            view.set_hint(hint.into());
             let [
                 (tracks, more_tracks),
                 (albums, more_albums),

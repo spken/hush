@@ -1,0 +1,27 @@
+import { Theme } from "../theme.slint";
+
+// Room for `count` cells in as many equal columns of at least `min-cell` as fit, row by
+// row. Each cell takes `cell` as its width and its place from `cell-x(index)` and
+// `cell-y(index)`. By default the cells are tiles: square art over a caption.
+export component Grid inherits Rectangle {
+    in property <int> count;
+    in property <length> min-cell: Theme.art-tile;
+    in property <length> cell-height: self.cell + Theme.space-2 + Theme.tile-caption;
+    in property <length> row-gap: Theme.space-3;
+    out property <length> cell: (self.width - (self.columns - 1) * self.gap) / self.columns;
+    property <length> gap: Theme.space-5;
+    property <int> columns: max(1, floor((self.width + self.gap) / (self.min-cell + self.gap)));
+    property <length> row-height: self.cell-height + self.row-gap;
+
+    height: ceil(root.count / self.columns) * self.row-height;
+
+    public pure function cell-x(index: int) -> length {
+        mod(index, root.columns) * (root.cell + root.gap)
+    }
+
+    public pure function cell-y(index: int) -> length {
+        floor(index / root.columns) * root.row-height
+    }
+
+    @children
+}

@@ -7,7 +7,7 @@ import { PosterHeader } from "components/poster-header.slint";
 import { SectionHeader } from "components/section-header.slint";
 import { SongRow } from "components/song-row.slint";
 import { Tile } from "components/tile.slint";
-import { TileGrid } from "components/tile-grid.slint";
+import { Grid } from "components/grid.slint";
 
 // An artist: portrait and name, Play and Shuffle, the most played tracks, then every
 // album and single as a grid of covers.
@@ -74,12 +74,12 @@ export component ArtistPage inherits VerticalLayout {
                 title: "Albums and Singles";
             }
 
-            grid := TileGrid {
+            grid := Grid {
                 count: ArtistView.albums.length;
 
                 for album[index] in ArtistView.albums: Tile {
-                    x: grid.tile-x(index);
-                    y: grid.tile-y(index);
+                    x: grid.cell-x(index);
+                    y: grid.cell-y(index);
                     width: grid.cell;
                     title: album.name;
                     detail: album.year == "" ? album.kind : album.year + " · " + album.kind;

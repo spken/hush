@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 import { Player, Format, Connection } from "player.slint";
-import { Icon, Icons } from "components/icon.slint";
+import { Icons } from "components/icon.slint";
+import { EmptyState } from "components/empty-state.slint";
 import { Artwork } from "components/artwork.slint";
 import { PillButton } from "components/pill-button.slint";
 
@@ -81,49 +82,16 @@ export component NowPlayingPage {
         }
     }
 
-    if !Player.has-track: VerticalLayout {
-        alignment: center;
-        spacing: Theme.space-3;
-
-        HorizontalLayout {
-            alignment: center;
-            Icon {
-                commands: Icons.note;
-                width: Theme.icon-lg;
-                height: Theme.icon-lg;
-                fill: Player.connection == Connection.failed ? Theme.danger : Theme.text-tertiary;
-            }
-        }
-
-        HorizontalLayout {
-            alignment: center;
-            padding-top: Theme.space-2;
-
-            Text {
-                text: Player.connection == Connection.connecting ? "Connecting to Spotify…"
-                    : Player.connection == Connection.failed ? "Couldn’t connect to Spotify"
-                    : "Nothing playing";
-                font-family: Theme.font-display;
-                font-size: Theme.text-title;
-                font-weight: Theme.weight-bold;
-                letter-spacing: Theme.tracking-display;
-                color: Theme.text;
-            }
-        }
-
-        HorizontalLayout {
-            alignment: center;
-
-            Text {
-                max-width: Theme.empty-max-width;
-                text: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
-                    : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
-                    : "In Spotify on your phone or computer, open the device list and choose Hush.";
-                wrap: word-wrap;
-                horizontal-alignment: center;
-                font-size: Theme.text-body;
-                color: Theme.text-secondary;
-            }
-        }
+    if !Player.has-track: EmptyState {
+        width: 100%;
+        height: 100%;
+        glyph: Icons.note;
+        glyph-color: Player.connection == Connection.failed ? Theme.danger : Theme.text-tertiary;
+        title: Player.connection == Connection.connecting ? "Connecting to Spotify…"
+            : Player.connection == Connection.failed ? "Couldn’t connect to Spotify"
+            : "Nothing playing";
+        message: Player.connection == Connection.connecting ? "Hush is signing in and registering as a Spotify Connect device."
+            : Player.connection == Connection.failed ? Player.error + "\nRestart Hush to try again."
+            : "In Spotify on your phone or computer, open the device list and choose Hush.";
     }
 }

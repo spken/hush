@@ -1,0 +1,51 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "icon.slint";
+
+// A page with nothing to show yet: a glyph, a headline and what to do, centred.
+export component EmptyState inherits VerticalLayout {
+    in property <string> glyph;
+    in property <color> glyph-color: Theme.text-tertiary;
+    in property <string> title;
+    in property <string> message;
+
+    alignment: center;
+    spacing: Theme.space-3;
+
+    HorizontalLayout {
+        alignment: center;
+
+        Icon {
+            commands: root.glyph;
+            width: Theme.icon-lg;
+            height: Theme.icon-lg;
+            fill: root.glyph-color;
+        }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        padding-top: Theme.space-2;
+
+        Text {
+            text: root.title;
+            font-family: Theme.font-display;
+            font-size: Theme.text-title;
+            font-weight: Theme.weight-bold;
+            letter-spacing: Theme.tracking-display;
+            color: Theme.text;
+        }
+    }
+
+    if root.message != "": HorizontalLayout {
+        alignment: center;
+
+        Text {
+            max-width: Theme.empty-max-width;
+            text: root.message;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+            font-size: Theme.text-body;
+            color: Theme.text-secondary;
+        }
+    }
+}
