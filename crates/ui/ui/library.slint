@@ -74,7 +74,7 @@ export global Library {
     callback sort-tracks(int);
     // Pins the playlist with this key, or with `false` unpins it.
     callback pin(int, bool);
-    // Plays the open list from the track with this key, or 0 for its top; shuffled or not.
-    callback play(int, int, bool);
+    // Plays the list with this key from the track with this key, or 0 for its top.
+    callback play(int, int);
     callback sync();
 }

@@ -31,7 +31,7 @@ export global AlbumView {
     in property <[TrackRow]> tracks;
 
     // Plays the album with this key from the track with this key, or 0 for its top.
-    callback play(int, int, bool);
+    callback play(int, int);
 }
 
 export global ArtistView {
@@ -44,5 +44,5 @@ export global ArtistView {
     in property <[AlbumRow]> albums;
 
     // Plays the artist with this key from the track with this key, or 0 for the top.
-    callback play(int, int, bool);
+    callback play(int, int);
 }

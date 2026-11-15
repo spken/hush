@@ -261,18 +261,14 @@ fn load(controller: &controller::Handle, entity: Entity) -> impl Fn(Vec<u32>) + 
     move |keys| controller.send(Command::RowsVisible { entity, keys })
 }
 
-/// A `play(list key, start key, shuffle)` callback for the list `list` maps a key to; a
-/// start key of 0 plays from the top.
-fn play(
-    controller: &controller::Handle,
-    list: fn(i32) -> List,
-) -> impl Fn(i32, i32, bool) + 'static {
+/// A `play(list key, start key)` callback for the list `list` maps a key to; a start key
+/// of 0 plays from the top.
+fn play(controller: &controller::Handle, list: fn(i32) -> List) -> impl Fn(i32, i32) + 'static {
     let controller = controller.clone();
-    move |key, start, shuffle| {
+    move |key, start| {
         controller.send(Command::Play {
             list: list(key),
             start: u32::try_from(start).ok().filter(|&start| start != 0),
-            shuffle,
         });
     }
 }

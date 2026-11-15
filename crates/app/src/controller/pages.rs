@@ -131,7 +131,6 @@ impl Controller {
         &mut self,
         list: List,
         start: Option<u32>,
-        shuffle: bool,
     ) -> Result<(), store::Error> {
         let context = match list {
             // Spotify plays its own order, so another order plays as a list of tracks.
@@ -156,22 +155,21 @@ impl Controller {
             tracing::warn!(?list, "nothing to play");
             return Ok(());
         };
-        self.play_context(context, start, shuffle).await
+        self.play_context(context, start).await
     }
 
-    /// Plays `context` on Hush from the track with key `start`, or from its top, making
-    /// Hush the active device first.
+    /// Plays `context` on Hush from the track with key `start`, or from its top, shuffled
+    /// while shuffle is on, making Hush the active device first.
     pub(super) async fn play_context(
         &mut self,
         context: Context,
         start: Option<u32>,
-        shuffle: bool,
     ) -> Result<(), store::Error> {
         let start = match start {
             Some(key) => self.store.id(Entity::Track, key).await?.map(TrackId),
             None => None,
         };
-        let active = self.active;
+        let (active, shuffle) = (self.active, self.shuffle);
         self.playback(|device| {
             if !active {
                 device.activate()?;

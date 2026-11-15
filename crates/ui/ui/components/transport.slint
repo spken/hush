@@ -1,6 +1,7 @@
 import { Theme } from "../theme.slint";
 import { Icons } from "icon.slint";
 import { IconButton } from "icon-button.slint";
+import { ShuffleButton } from "shuffle-button.slint";
 import { Player } from "../player.slint";
 
 // Shuffle, previous, play/pause and next for the current track, with play/pause centred.
@@ -13,15 +14,9 @@ export component Transport inherits HorizontalLayout {
         alignment: end;
         spacing: Theme.space-3;
 
-        IconButton {
-            icon: Icons.shuffle;
-            label: Player.shuffle ? "Turn Shuffle Off" : "Shuffle";
+        ShuffleButton {
             size: Theme.button-sm;
             icon-size: Theme.icon-sm;
-            enabled: Player.has-track;
-            selected: Player.shuffle;
-            tint: Player.shuffle ? Theme.text : Theme.text-secondary;
-            clicked => { Player.set-shuffle(!Player.shuffle); }
         }
 
         IconButton {

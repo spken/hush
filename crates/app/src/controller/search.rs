@@ -184,7 +184,7 @@ impl Controller {
     pub(super) async fn play_found(&mut self, start: u32) -> Result<(), store::Error> {
         let songs = self.search.shown(Entity::Track);
         let ids = self.store.ids(Entity::Track, songs).await?;
-        self.play_context(Context::Tracks(ids.into()), Some(start), false)
+        self.play_context(Context::Tracks(ids.into()), Some(start))
             .await
     }
 

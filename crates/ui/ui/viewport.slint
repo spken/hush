@@ -1,0 +1,18 @@
+// How much room the window leaves, which the window sets as it resizes, and how pages fit
+// themselves to it.
+
+import { Theme } from "theme.slint";
+
+export global Viewport {
+    in-out property <length> window-width;
+    // What the rail and a docked queue leave for the page.
+    in-out property <length> page-width;
+    out property <bool> queue-docked: self.window-width >= Theme.queue-dock-min;
+    // Tighter margins and smaller type.
+    out property <bool> compact: self.page-width < Theme.compact-page;
+    // Compact, and the library's list folded down to its covers.
+    out property <bool> narrow: self.page-width < Theme.narrow-page;
+    out property <bool> compact-bar: self.window-width < Theme.compact-bar;
+    // A page's left and right margin.
+    out property <length> margin: self.compact ? Theme.space-5 : Theme.space-7;
+}

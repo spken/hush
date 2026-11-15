@@ -17,13 +17,9 @@ pub enum Command {
     SetVolume(u16),
     /// Turn shuffle on, or with `false` off.
     SetShuffle(bool),
-    /// Play a list on Hush: from the track with key `start`, or from its top; shuffled or
-    /// in order.
-    Play {
-        list: List,
-        start: Option<u32>,
-        shuffle: bool,
-    },
+    /// Play a list on Hush: from the track with key `start`, or from its top, shuffled
+    /// while shuffle is on.
+    Play { list: List, start: Option<u32> },
     /// Add the track with this key to the end of the queue of whichever device plays.
     Queue(u32),
     /// The queue panel opened, or with `false` closed.

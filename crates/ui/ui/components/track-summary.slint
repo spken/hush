@@ -5,7 +5,6 @@ import { Artwork } from "artwork.slint";
 
 // The current track in the playback bar: cover, title and artists. It opens Now Playing.
 export component TrackSummary inherits Rectangle {
-    width: Theme.summary-width;
     accessible-role: button;
     accessible-label: "Now playing: " + Player.title + ", " + Player.artists;
     accessible-action-default => { Nav.go(Page.now-playing); }

@@ -1,12 +1,13 @@
 import { ListView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { Nav, AlbumView } from "catalog.slint";
 import { Icons } from "components/icon.slint";
 import { IconButton } from "components/icon-button.slint";
 import { PosterHeader } from "components/poster-header.slint";
 import { SongRow } from "components/song-row.slint";
 
-// An album set like a poster: cover, title, artist and year, Play and Shuffle, then its
+// An album set like a poster: cover, title, artist and year, play and shuffle, then its
 // tracks by number.
 export component AlbumPage inherits VerticalLayout {
     // A newly opened album starts at its top.
@@ -14,8 +15,8 @@ export component AlbumPage inherits VerticalLayout {
     changed key => { songs.content-y = 0; }
 
     padding-top: Theme.space-5;
-    padding-left: Theme.space-7;
-    padding-right: Theme.space-7;
+    padding-left: Viewport.margin;
+    padding-right: Viewport.margin;
     spacing: Theme.space-5;
 
     HorizontalLayout {
@@ -42,7 +43,7 @@ export component AlbumPage inherits VerticalLayout {
                 Nav.open-artist(AlbumView.artist-key);
             }
         }
-        play(shuffle) => { AlbumView.play(AlbumView.key, 0, shuffle); }
+        play => { AlbumView.play(AlbumView.key, 0); }
     }
 
     if AlbumView.status != "": Text {
@@ -57,7 +58,7 @@ export component AlbumPage inherits VerticalLayout {
         for track[index] in AlbumView.tracks: SongRow {
             track: track;
             number: index + 1;
-            play => { AlbumView.play(AlbumView.key, track.key, false); }
+            play => { AlbumView.play(AlbumView.key, track.key); }
             open-artist(key) => { Nav.open-artist(key); }
         }
     }

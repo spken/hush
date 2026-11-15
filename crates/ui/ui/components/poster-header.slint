@@ -1,10 +1,12 @@
 import { Theme } from "../theme.slint";
+import { Viewport } from "../viewport.slint";
 import { Icons } from "icon.slint";
 import { Artwork } from "artwork.slint";
-import { PillButton } from "pill-button.slint";
+import { IconButton } from "icon-button.slint";
+import { ShuffleButton } from "shuffle-button.slint";
 
 // The top of a list page: art beside a small label, a poster-size title, a credit line
-// whose `link` part opens what it names, and the Play and Shuffle pills.
+// whose `link` part opens what it names, and the play button beside the shuffle switch.
 export component PosterHeader inherits HorizontalLayout {
     in property <string> glyph: Icons.note;
     in property <bool> round;
@@ -15,13 +17,13 @@ export component PosterHeader inherits HorizontalLayout {
     in property <string> detail;
     in property <bool> playable;
     callback open-link();
-    // Plays from the top; shuffled when true.
-    callback play(bool);
+    // Plays from the top, shuffled while shuffle is on.
+    callback play();
 
-    spacing: Theme.space-6;
+    spacing: Viewport.compact ? Theme.space-5 : Theme.space-6;
 
     Artwork {
-        size: Theme.art-header;
+        size: Viewport.compact ? Theme.art-header-sm : Theme.art-header;
         large: true;
         round: root.round;
         glyph: root.glyph;
@@ -44,7 +46,7 @@ export component PosterHeader inherits HorizontalLayout {
             text: root.title;
             overflow: elide;
             font-family: Theme.font-display;
-            font-size: Theme.text-display;
+            font-size: Viewport.compact ? Theme.text-title : Theme.text-display;
             font-weight: Theme.weight-bold;
             letter-spacing: Theme.tracking-display;
             color: Theme.text;
@@ -84,21 +86,23 @@ export component PosterHeader inherits HorizontalLayout {
         }
 
         if root.playable: HorizontalLayout {
-            padding-top: Theme.space-3;
-            spacing: Theme.space-2;
+            padding-top: Theme.space-2;
+            spacing: Theme.space-3;
             alignment: start;
 
-            PillButton {
+            IconButton {
                 primary: true;
                 icon: Icons.play;
-                text: "Play";
-                clicked => { root.play(false); }
+                label: "Play";
+                size: Theme.button-lg;
+                icon-size: Theme.icon-md;
+                clicked => { root.play(); }
             }
 
-            PillButton {
-                icon: Icons.shuffle;
-                text: "Shuffle";
-                clicked => { root.play(true); }
+            VerticalLayout {
+                alignment: center;
+
+                ShuffleButton {}
             }
         }
     }

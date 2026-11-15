@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { Nav, AlbumView, ArtistView } from "catalog.slint";
 import { Icons } from "components/icon.slint";
 import { IconButton } from "components/icon-button.slint";
@@ -9,7 +10,7 @@ import { SongRow } from "components/song-row.slint";
 import { Tile } from "components/tile.slint";
 import { Grid } from "components/grid.slint";
 
-// An artist: portrait and name, Play and Shuffle, the most played tracks, then every
+// An artist: portrait and name, play and shuffle, the most played tracks, then every
 // album and single as a grid of covers.
 export component ArtistPage inherits VerticalLayout {
     // A newly opened artist starts at the top.
@@ -17,8 +18,8 @@ export component ArtistPage inherits VerticalLayout {
     changed key => { scroll.content-y = 0; }
 
     padding-top: Theme.space-5;
-    padding-left: Theme.space-7;
-    padding-right: Theme.space-7;
+    padding-left: Viewport.margin;
+    padding-right: Viewport.margin;
     spacing: Theme.space-5;
 
     HorizontalLayout {
@@ -48,7 +49,7 @@ export component ArtistPage inherits VerticalLayout {
                 label: "ARTIST";
                 title: ArtistView.name;
                 playable: ArtistView.top-tracks.length > 0;
-                play(shuffle) => { ArtistView.play(ArtistView.key, 0, shuffle); }
+                play => { ArtistView.play(ArtistView.key, 0); }
             }
 
             if ArtistView.status != "": Text {
@@ -66,7 +67,7 @@ export component ArtistPage inherits VerticalLayout {
                 for track[index] in ArtistView.top-tracks: SongRow {
                     track: track;
                     number: index + 1;
-                    play => { ArtistView.play(ArtistView.key, track.key, false); }
+                    play => { ArtistView.play(ArtistView.key, track.key); }
                     open-artist(key) => { Nav.open-artist(key); }
                 }
             }
@@ -87,7 +88,7 @@ export component ArtistPage inherits VerticalLayout {
                     detail: album.year == "" ? album.kind : album.year + " · " + album.kind;
                     playable: true;
                     clicked => { Nav.open-album(album.key); }
-                    play => { AlbumView.play(album.key, 0, false); }
+                    play => { AlbumView.play(album.key, 0); }
                 }
             }
         }

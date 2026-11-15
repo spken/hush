@@ -4,7 +4,8 @@ import { Icons } from "icon.slint";
 import { IconButton } from "icon-button.slint";
 
 // A list in the library: a small art block, its name and one line of detail. It is marked
-// while open. A `pinnable` one shows a pin at its end while pinned or hovered.
+// while open. A `pinnable` one shows a pin at its end while pinned or hovered. A
+// `collapsed` one is its art block alone.
 export component ListEntry inherits Rectangle {
     in property <string> title;
     in property <string> detail;
@@ -13,6 +14,7 @@ export component ListEntry inherits Rectangle {
     in property <bool> selected;
     in property <bool> pinnable;
     in property <bool> pinned;
+    in property <bool> collapsed;
     callback clicked();
     // Pins the list, or with `false` unpins it.
     callback pin(bool);
@@ -28,7 +30,7 @@ export component ListEntry inherits Rectangle {
 
     HorizontalLayout {
         padding-left: Theme.space-2;
-        padding-right: root.pinnable ? Theme.button-sm + Theme.space-2 : Theme.space-3;
+        padding-right: root.collapsed ? Theme.space-2 : root.pinnable ? Theme.button-sm + Theme.space-2 : Theme.space-3;
         spacing: Theme.space-3;
 
         VerticalLayout {
@@ -41,7 +43,7 @@ export component ListEntry inherits Rectangle {
             }
         }
 
-        VerticalLayout {
+        if !root.collapsed: VerticalLayout {
             alignment: center;
             spacing: Theme.space-1;
 
@@ -67,7 +69,7 @@ export component ListEntry inherits Rectangle {
         clicked => { root.clicked(); }
 
         // Inside the row's touch area, so hovering it keeps the row hovered.
-        if root.pinnable: IconButton {
+        if root.pinnable && !root.collapsed: IconButton {
             x: parent.width - self.width - Theme.space-1;
             y: (parent.height - self.height) / 2;
             size: Theme.button-sm;

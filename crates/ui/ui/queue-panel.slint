@@ -6,10 +6,17 @@ import { IconButton } from "components/icon-button.slint";
 import { SongRow } from "components/song-row.slint";
 
 // What plays next, in a pane beside the page: the queue first, then the rest of what
-// plays.
+// plays. A `floating` one lies over the page instead, solid and shadowed.
 export component QueuePanel inherits Rectangle {
+    in property <bool> floating;
+
     width: Theme.queue-width;
-    background: Theme.pane;
+    background: root.floating ? Theme.panel : Theme.pane;
+    drop-shadow-blur: root.floating ? Theme.shadow-blur : 0;
+    drop-shadow-color: Theme.shadow;
+
+    // Clicks on the pane stay off the page under a floating one.
+    TouchArea {}
 
     Rectangle {
         x: 0;

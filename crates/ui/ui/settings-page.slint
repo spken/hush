@@ -1,5 +1,6 @@
 import { ComboBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { SettingsView, UpdateState } from "settings.slint";
 import { Icons } from "components/icon.slint";
 import { PillButton } from "components/pill-button.slint";
@@ -51,8 +52,8 @@ component Band inherits VerticalLayout {
 // equalizer.
 export component SettingsPage inherits VerticalLayout {
     padding-top: Theme.space-6;
-    padding-left: Theme.space-7;
-    padding-right: Theme.space-7;
+    padding-left: Viewport.margin;
+    padding-right: Viewport.margin;
     spacing: Theme.space-5;
 
     Text {

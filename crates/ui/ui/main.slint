@@ -1,5 +1,6 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { Player, Format, Debug, Connection, EndpointRequests, Note } from "player.slint";
 import { Library, TrackRow, ArtistRow, AlbumRow, PlaylistRow } from "library.slint";
 import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
@@ -28,6 +29,11 @@ export { Player, Format, Debug, Connection, EndpointRequests, Note, Library, Tra
 export component MainWindow inherits Window {
     property <bool> immersive;
     property <bool> debug-open;
+    property <bool> queue-shown: Queue.open && !root.immersive;
+    property <length> page-width: root.width - (root.immersive ? 0 : Theme.rail-width)
+        - (root.queue-shown && Viewport.queue-docked ? Theme.queue-width : 0);
+    changed width => { Viewport.window-width = self.width; }
+    changed page-width => { Viewport.page-width = self.page-width; }
 
     title: "Hush";
     icon: @image-url("assets/hush.svg");
@@ -45,8 +51,12 @@ export component MainWindow inherits Window {
     full-screen: root.immersive;
     forward-focus: keys;
 
-    // The scroll bars of the standard list view follow the dark canvas.
-    init => { Palette.color-scheme = ColorScheme.dark; }
+    init => {
+        // The scroll bars of the standard list view follow the dark canvas.
+        Palette.color-scheme = ColorScheme.dark;
+        Viewport.window-width = self.width;
+        Viewport.page-width = self.page-width;
+    }
 
     Timer {
         interval: Player.next-tick;
@@ -100,40 +110,48 @@ export component MainWindow inherits Window {
                         message: Player.notice;
                     }
 
-                    HorizontalLayout {
+                    Rectangle {
                         vertical-stretch: 1;
 
-                        VerticalLayout {
-                            horizontal-stretch: 1;
+                        HorizontalLayout {
+                            VerticalLayout {
+                                horizontal-stretch: 1;
 
-                            if Nav.page == Page.now-playing: NowPlayingPage {
-                                vertical-stretch: 1;
-                                full-screen: root.immersive;
-                                toggle-full-screen => { root.immersive = !root.immersive; }
+                                if Nav.page == Page.now-playing: NowPlayingPage {
+                                    vertical-stretch: 1;
+                                    full-screen: root.immersive;
+                                    toggle-full-screen => { root.immersive = !root.immersive; }
+                                }
+
+                                if Nav.page == Page.search: SearchPage {
+                                    vertical-stretch: 1;
+                                }
+
+                                if Nav.page == Page.settings: SettingsPage {
+                                    vertical-stretch: 1;
+                                }
+
+                                if Nav.page == Page.library: LibraryPage {
+                                    vertical-stretch: 1;
+                                }
+
+                                if Nav.page == Page.album: AlbumPage {
+                                    vertical-stretch: 1;
+                                }
+
+                                if Nav.page == Page.artist: ArtistPage {
+                                    vertical-stretch: 1;
+                                }
                             }
 
-                            if Nav.page == Page.search: SearchPage {
-                                vertical-stretch: 1;
-                            }
-
-                            if Nav.page == Page.settings: SettingsPage {
-                                vertical-stretch: 1;
-                            }
-
-                            if Nav.page == Page.library: LibraryPage {
-                                vertical-stretch: 1;
-                            }
-
-                            if Nav.page == Page.album: AlbumPage {
-                                vertical-stretch: 1;
-                            }
-
-                            if Nav.page == Page.artist: ArtistPage {
-                                vertical-stretch: 1;
-                            }
+                            if root.queue-shown && Viewport.queue-docked: QueuePanel {}
                         }
 
-                        if Queue.open && !root.immersive: QueuePanel {}
+                        if root.queue-shown && !Viewport.queue-docked: QueuePanel {
+                            x: parent.width - self.width;
+                            height: parent.height;
+                            floating: true;
+                        }
                     }
 
                     if Player.has-track: Controls {}

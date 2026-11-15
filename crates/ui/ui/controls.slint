@@ -1,4 +1,5 @@
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { Timeline } from "components/timeline.slint";
 import { Transport } from "components/transport.slint";
 import { Volume } from "components/volume.slint";
@@ -11,15 +12,19 @@ import { Queue } from "queue.slint";
 // The borderless strip along the bottom of the canvas: the current track on the left,
 // the transport over the timeline in the centre, volume and the device picker on the
 // right, beside the queue button. The two sides are as wide as each other so the centre
-// stays centred.
+// stays centred, and narrow with the window.
 export component Controls inherits HorizontalLayout {
+    property <length> side: Viewport.compact-bar ? Theme.summary-width-sm : Theme.summary-width;
+
     height: Theme.controls-height;
-    padding-left: Theme.space-6;
-    padding-right: Theme.space-6;
-    spacing: Theme.space-5;
+    padding-left: Viewport.compact-bar ? Theme.space-5 : Theme.space-6;
+    padding-right: self.padding-left;
+    spacing: Viewport.compact-bar ? Theme.space-4 : Theme.space-5;
     alignment: space-between;
 
-    TrackSummary {}
+    TrackSummary {
+        width: root.side;
+    }
 
     VerticalLayout {
         horizontal-stretch: 1;
@@ -35,11 +40,13 @@ export component Controls inherits HorizontalLayout {
     }
 
     HorizontalLayout {
-        width: Theme.summary-width;
+        width: root.side;
         alignment: end;
         spacing: Theme.space-3;
 
-        Volume {}
+        Volume {
+            compact: Viewport.compact-bar;
+        }
 
         HorizontalLayout {
             spacing: Theme.space-1;
@@ -52,7 +59,8 @@ export component Controls inherits HorizontalLayout {
                     label: "Playing Next";
                     size: Theme.button-sm;
                     icon-size: Theme.icon-sm;
-                    selected: Queue.open;
+                    toggle: true;
+                    on: Queue.open;
                     clicked => { Queue.set-open(!Queue.open); }
                 }
             }

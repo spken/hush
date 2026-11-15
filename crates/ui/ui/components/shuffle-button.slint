@@ -1,0 +1,13 @@
+import { Theme } from "../theme.slint";
+import { Icons } from "icon.slint";
+import { IconButton } from "icon-button.slint";
+import { Player } from "../player.slint";
+
+// The shuffle switch. It shuffles what plays now, and every list played while it is on.
+export component ShuffleButton inherits IconButton {
+    icon: Icons.shuffle;
+    label: "Shuffle";
+    toggle: true;
+    on: Player.shuffle;
+    clicked => { Player.set-shuffle(!Player.shuffle); }
+}

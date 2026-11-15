@@ -100,6 +100,8 @@ enum Catalog {
     Off,
 }
 
+// Each flag is a separate fact about the app; none of them combine into states.
+#[allow(clippy::struct_excessive_bools)]
 struct Controller {
     view: View,
     store: Store,
@@ -131,6 +133,9 @@ struct Controller {
     backdrop: CancellationToken,
     overlay: Option<Overlay>,
     queue: Panel,
+    /// Whether shuffle is on: as the device that plays last reported it, or as the user
+    /// last set it. Lists Hush plays follow it.
+    shuffle: bool,
     /// The playback settings, as saved.
     playback: Playback,
     remote: Remote,
@@ -189,6 +194,7 @@ async fn run(deps: Deps, mut commands: Receiver<Command>, own: WeakSender<Comman
         backdrop: CancellationToken::new(),
         overlay: None,
         queue: Panel::Closed,
+        shuffle: false,
         playback: playback.clone(),
         remote: Remote::new(),
         degraded: Vec::new(),
@@ -429,14 +435,15 @@ impl Controller {
                 }
             }
             Command::SetShuffle(shuffle) => {
+                // With nothing playing, the choice waits for the next list Hush plays.
                 let sent = if self.remote_active() {
                     self.control_remote(Control::Shuffle(shuffle));
                     true
                 } else {
-                    self.playback(|device| device.set_shuffle(shuffle))
+                    !self.active || self.playback(|device| device.set_shuffle(shuffle))
                 };
                 if sent {
-                    self.view.shuffle(shuffle);
+                    self.show_shuffle(shuffle);
                 }
             }
             Command::WindowFocused => self.poll_in(Duration::ZERO),
@@ -450,11 +457,7 @@ impl Controller {
             }
             Command::ListDevices => self.list_devices(),
             Command::Transfer(id) => self.transfer(&id),
-            Command::Play {
-                list,
-                start,
-                shuffle,
-            } => report(self.play(list, start, shuffle).await),
+            Command::Play { list, start } => report(self.play(list, start).await),
             Command::Queue(key) => report(self.add_to_queue(key).await),
             Command::ShowQueue(open) => self.show_queue(open),
             Command::Navigate(route) => self.navigate(route).await,
@@ -503,6 +506,12 @@ impl Controller {
         }
     }
 
+    /// Keeps and shows whether shuffle is on.
+    fn show_shuffle(&mut self, shuffle: bool) {
+        self.shuffle = shuffle;
+        self.view.shuffle(shuffle);
+    }
+
     /// Runs a playback command on the device; `false` when there is no device or it failed.
     fn playback(&self, command: impl FnOnce(&Device) -> Result<(), playback::Error>) -> bool {
         let Some(device) = &self.device else {
@@ -536,7 +545,7 @@ impl Controller {
             }
             Event::Volume(volume) => self.view.volume(volume),
             Event::Shuffle(shuffle) => {
-                self.view.shuffle(shuffle);
+                self.show_shuffle(shuffle);
                 self.read_queue(QUEUE_SETTLE);
             }
             Event::Active(active) => {

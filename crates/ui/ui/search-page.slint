@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { Viewport } from "viewport.slint";
 import { Library } from "library.slint";
 import { Nav, Page, AlbumView, ArtistView } from "catalog.slint";
 import { SearchView, ResultKind } from "search.slint";
@@ -16,8 +17,8 @@ import { Tile } from "components/tile.slint";
 // Spotify's catalog.
 export component SearchPage inherits VerticalLayout {
     padding-top: Theme.space-6;
-    padding-left: Theme.space-7;
-    padding-right: Theme.space-7;
+    padding-left: Viewport.margin;
+    padding-right: Viewport.margin;
     spacing: Theme.space-5;
 
     init => { field.focus(); }
@@ -34,11 +35,11 @@ export component SearchPage inherits VerticalLayout {
     }
 
     HorizontalLayout {
-        alignment: start;
         spacing: Theme.space-5;
 
         field := TextField {
-            width: Theme.field-width;
+            horizontal-stretch: 1;
+            max-width: Theme.field-width;
             icon: Icons.search;
             text <=> SearchView.query;
             placeholder: "Songs, artists, albums and playlists";
@@ -47,6 +48,7 @@ export component SearchPage inherits VerticalLayout {
         }
 
         Text {
+            horizontal-stretch: 0;
             text: SearchView.status;
             vertical-alignment: center;
             overflow: elide;
@@ -128,7 +130,7 @@ export component SearchPage inherits VerticalLayout {
                         round: true;
                         playable: true;
                         clicked => { Nav.open-artist(artist.key); }
-                        play => { ArtistView.play(artist.key, 0, false); }
+                        play => { ArtistView.play(artist.key, 0); }
                     }
                 }
             }
@@ -154,7 +156,7 @@ export component SearchPage inherits VerticalLayout {
                         detail: album.year == "" ? album.artists : album.artists + " · " + album.year;
                         playable: true;
                         clicked => { Nav.open-album(album.key); }
-                        play => { AlbumView.play(album.key, 0, false); }
+                        play => { AlbumView.play(album.key, 0); }
                     }
                 }
             }
@@ -180,7 +182,7 @@ export component SearchPage inherits VerticalLayout {
                         detail: playlist.detail;
                         glyph: Icons.note;
                         playable: true;
-                        play => { Library.play(playlist.key, 0, false); }
+                        play => { Library.play(playlist.key, 0); }
                         clicked => {
                             Library.open(playlist.key);
                             Nav.go(Page.library);

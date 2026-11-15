@@ -3,9 +3,10 @@ import { Icon, Icons } from "icon.slint";
 import { SeekBar } from "seek-bar.slint";
 import { Player } from "../player.slint";
 
-// The device volume slider between a quiet and a loud speaker glyph.
+// The device volume slider between a quiet and a loud speaker glyph; `compact`, a shorter
+// slider after the quiet one only.
 export component Volume inherits HorizontalLayout {
-    in property <length> bar-width: Theme.volume-width;
+    in property <bool> compact;
 
     alignment: center;
     spacing: Theme.space-2;
@@ -21,13 +22,13 @@ export component Volume inherits HorizontalLayout {
     }
 
     SeekBar {
-        width: root.bar-width;
+        width: root.compact ? Theme.volume-width-sm : Theme.volume-width;
         label: "Volume";
         value: Player.volume / Player.volume-max;
         committed(fraction) => { Player.set-volume(round(fraction * Player.volume-max)); }
     }
 
-    VerticalLayout {
+    if !root.compact: VerticalLayout {
         alignment: center;
         Icon {
             commands: Icons.speaker-loud;

@@ -2,7 +2,7 @@ import { Theme } from "../theme.slint";
 import { Icon } from "icon.slint";
 
 // A round button showing one glyph: borderless, or with `primary` filled with the accent
-// colour.
+// colour. A `toggle` is quiet while off and lit, with a dot under its glyph, while `on`.
 export component IconButton inherits Rectangle {
     in property <string> icon;
     in property <string> label;
@@ -11,7 +11,9 @@ export component IconButton inherits Rectangle {
     in property <bool> enabled: true;
     in property <bool> selected;
     in property <bool> primary;
-    in property <color> tint: root.primary ? Theme.on-accent : Theme.text;
+    in property <bool> toggle;
+    in property <bool> on;
+    in property <color> tint: root.primary ? Theme.on-accent : root.toggle && !root.on ? Theme.text-secondary : Theme.text;
     callback clicked();
 
     width: root.size;
@@ -23,6 +25,8 @@ export component IconButton inherits Rectangle {
     animate background { duration: Theme.duration-fast; easing: ease-out; }
     accessible-role: button;
     accessible-label: root.label;
+    accessible-checkable: root.toggle;
+    accessible-checked: root.on;
     accessible-enabled: root.enabled;
     accessible-action-default => { root.clicked(); }
 
@@ -31,6 +35,16 @@ export component IconButton inherits Rectangle {
         width: root.icon-size;
         height: root.icon-size;
         fill: root.enabled || root.primary ? root.tint : Theme.text-tertiary;
+        animate fill { duration: Theme.duration-fast; easing: ease-out; }
+    }
+
+    // Halfway between the glyph and the button's edge.
+    if root.toggle && root.on: Rectangle {
+        y: (3 * root.height + root.icon-size - 2 * Theme.toggle-dot) / 4;
+        width: Theme.toggle-dot;
+        height: Theme.toggle-dot;
+        border-radius: Theme.toggle-dot / 2;
+        background: root.tint;
     }
 
     touch := TouchArea {

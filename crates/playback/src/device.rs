@@ -161,6 +161,9 @@ impl Device {
                 LoadRequest::from_tracks(ids.iter().map(|&id| uri("track", id)).collect(), options)
             }
         };
+        // A load does not report its shuffle state, and activating reported the one before,
+        // so set it first to have it reported.
+        self.spirc.shuffle(shuffle)?;
         Ok(self.spirc.load(request)?)
     }
 

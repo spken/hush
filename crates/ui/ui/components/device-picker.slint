@@ -82,7 +82,8 @@ export component DevicePicker inherits VerticalLayout {
         label: "Devices";
         size: Theme.button-sm;
         icon-size: Theme.icon-sm;
-        selected: Player.remote-device != "";
+        toggle: true;
+        on: Player.remote-device != "";
         clicked => {
             Player.list-devices();
             popup.show();
